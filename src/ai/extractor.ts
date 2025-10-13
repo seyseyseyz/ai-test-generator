@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 /**
  * 从 AI 回复中提取测试文件并自动创建
  */
@@ -7,19 +6,38 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname } from 'node:path';
 
+interface ExtractOptions {
+  overwrite?: boolean
+  dryRun?: boolean
+}
+
+interface TestFile {
+  path: string
+  code?: string
+  dryRun?: boolean
+  reason?: string
+  error?: string
+}
+
+interface ExtractResult {
+  created: TestFile[]
+  skipped: TestFile[]
+  errors: TestFile[]
+}
+
 /**
  * 从 AI 响应中提取测试文件
  */
-export function extractTests(content, options = {}) {
+export function extractTests(content: string, options: ExtractOptions = {}): ExtractResult {
   const { overwrite = false, dryRun = false } = options;
 
   // 先尝试解析 JSON Manifest（优先）
   // 形如：```json { version: 1, files: [{ path, source, ... }] }
-  let manifest = null;
+  let manifest: any = null;
   const manifestRegex = /```json\s*\n([\s\S]*?)\n```/gi;
-  let m;
+  let m: RegExpExecArray | null;
   while ((m = manifestRegex.exec(content)) !== null) {
-    const jsonStr = m[1].trim();
+    const jsonStr = m[1]?.trim() || '';
     try {
       const obj = JSON.parse(jsonStr);
       if (obj && Array.isArray(obj.files)) {
@@ -28,7 +46,7 @@ export function extractTests(content, options = {}) {
       }
     } catch {}
   }
-  const manifestPaths = manifest?.files?.map(f => String(f.path).trim()) ?? [];
+  const manifestPaths = manifest?.files?.map((f: any) => String(f.path).trim()) ?? [];
 
   // 再匹配多种文件代码块格式（回退/兼容，增强鲁棒性）
   const patterns = [
@@ -44,15 +62,15 @@ export function extractTests(content, options = {}) {
     /(?:path|文件|file)\s*[:：]?\s*`?([^\n`]*\.test\.[jt]sx?[^\n`]*?)`?\s*\n```(?:typescript|ts|tsx|javascript|js|jsx)?\s*\n([\s\S]*?)\n```/gi,
   ];
 
-  const created = [];
-  const skipped = [];
-  const errors = [];
+  const created: TestFile[] = [];
+  const skipped: TestFile[] = [];
+  const errors: TestFile[] = [];
 
   patterns.forEach(fileRegex => {
-    let match;
+    let match: RegExpExecArray | null;
     while ((match = fileRegex.exec(content)) !== null) {
       const [, filePath, testCode] = match;
-      const cleanPath = filePath.trim();
+      const cleanPath = (filePath || '').trim();
 
       // 若存在 Manifest，则只允许清单内的路径
       if (manifestPaths.length > 0 && !manifestPaths.includes(cleanPath)) {
@@ -72,7 +90,7 @@ export function extractTests(content, options = {}) {
       }
 
       if (dryRun) {
-        created.push({ path: cleanPath, code: testCode.trim(), dryRun: true });
+        created.push({ path: cleanPath, code: (testCode || '').trim(), dryRun: true });
         continue;
       }
 
@@ -81,11 +99,12 @@ export function extractTests(content, options = {}) {
         mkdirSync(dirname(cleanPath), { recursive: true });
 
         // 写入测试文件
-        const cleanCode = testCode.trim();
+        const cleanCode = (testCode || '').trim();
         writeFileSync(cleanPath, cleanCode + '\n');
         created.push({ path: cleanPath, code: cleanCode });
-      } catch (err) {
-        errors.push({ path: cleanPath, error: err.message });
+      } catch (err: unknown) {
+        const error = err as Error
+        errors.push({ path: cleanPath, error: error?.message || String(err) });
       }
     }
   });
@@ -93,8 +112,8 @@ export function extractTests(content, options = {}) {
   // 若有 Manifest 但未生成任何文件，则报告可能缺失代码块
   if (manifestPaths.length > 0) {
     const createdPaths = new Set(created.map(f => f.path));
-    const missing = manifestPaths.filter(p => !createdPaths.has(p));
-    missing.forEach(p => errors.push({ path: p, error: 'missing code block for manifest entry' }));
+    const missing = manifestPaths.filter((p: string) => !createdPaths.has(p));
+    missing.forEach((p: string) => errors.push({ path: p, error: 'missing code block for manifest entry' }));
   }
 
   return { created, skipped, errors };
@@ -103,7 +122,7 @@ export function extractTests(content, options = {}) {
 /**
  * CLI 入口
  */
-export function runCLI(argv = process.argv) {
+export function runCLI(argv: string[] = process.argv): void {
   const args = argv.slice(2);
   
   if (args.length === 0) {
@@ -118,13 +137,13 @@ export function runCLI(argv = process.argv) {
     process.exit(1);
   }
   
-  const responseFile = args[0];
-  const options = {
+  const responseFile = args[0] || '';
+  const options: ExtractOptions = {
     overwrite: args.includes('--overwrite'),
     dryRun: args.includes('--dry-run')
   };
   
-  if (!existsSync(responseFile)) {
+  if (!responseFile || !existsSync(responseFile)) {
     console.error(`❌ 文件不存在: ${responseFile}`);
     process.exit(1);
   }
