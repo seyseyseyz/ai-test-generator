@@ -32,6 +32,20 @@ export type TestStatus = 'TODO' | 'DONE' | 'SKIP' | 'FAIL'
 // ============================================================================
 
 /**
+ * Function metadata extracted during scanning
+ */
+export interface FunctionMetadata {
+  criticalImports: string[]
+  businessEntities: string[]
+  hasDocumentation: boolean
+  documentation: string
+  errorHandling: number
+  externalCalls: number
+  paramCount: number
+  returnType: string
+}
+
+/**
  * Scanned function metadata
  */
 export interface FunctionTarget {
@@ -46,6 +60,7 @@ export interface FunctionTarget {
   hasJSDoc?: boolean
   hasErrorHandling?: boolean
   hasApiCalls?: boolean
+  metadata?: FunctionMetadata
 }
 
 /**
@@ -418,6 +433,29 @@ export interface ActionLogEntry {
 }
 
 /**
+ * Custom error for AI test generation
+ */
+export class AITestError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public context?: Record<string, unknown>
+  ) {
+    super(message)
+    this.name = 'AITestError'
+  }
+}
+
+/**
+ * Validation error
+ */
+export interface ValidationError {
+  field: string
+  message: string
+  severity: 'error' | 'warning'
+}
+
+/**
  * Marker update
  */
 export interface MarkerUpdate {
@@ -447,7 +485,7 @@ export interface GitSignals {
  * Git analysis result
  */
 export interface GitAnalysisResult {
-  signals: Map<string, GitSignals>
+  signals: Record<string, GitSignals>
   summary: {
     totalFiles: number
     hotspotFiles: number
@@ -497,6 +535,16 @@ export interface GenerationReport {
   }
   telemetry?: IterationTelemetry[]
 }
+
+// ============================================================================
+// Export all types from other modules
+// ============================================================================
+
+export * from './utils.js'
+export * from './cli.js'
+export * from './coverage.js'
+export * from './quality.js'
+export * from './parallel.js'
 
 // ============================================================================
 // Export all types

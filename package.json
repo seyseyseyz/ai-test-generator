@@ -95,5 +95,8 @@
   "bugs": {
     "url": "https://github.com/YuhengZhou/ai-unit-test-generator/issues"
   },
-  "homepage": "https://github.com/YuhengZhou/ai-unit-test-generator#readme"
+  "homepage": "https://github.com/YuhengZhou/ai-unit-test-generator#readme",
+  "devDependencies": {
+    "@types/node": "^24.7.2"
+  }
 }
