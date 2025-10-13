@@ -15,7 +15,7 @@
  * @module behavior-classifier
  */
 
-import { type ArrowFunction, SyntaxKind, type FunctionDeclaration, type FunctionExpression, type ParameterDeclaration } from 'ts-morph'
+import { type ArrowFunction, type FunctionDeclaration, type FunctionExpression, type ParameterDeclaration, SyntaxKind } from 'ts-morph'
 
 // ============================================================================
 // Type Definitions

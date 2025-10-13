@@ -17,7 +17,7 @@
  * @module mock-analyzer
  */
 
-import { type ArrowFunction, SyntaxKind, type CallExpression, type FunctionDeclaration, type FunctionExpression, type SourceFile } from 'ts-morph'
+import { type ArrowFunction, type CallExpression, type FunctionDeclaration, type FunctionExpression, type SourceFile, SyntaxKind } from 'ts-morph'
 
 // ============================================================================
 // Type Definitions

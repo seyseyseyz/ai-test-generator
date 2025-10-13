@@ -63,7 +63,9 @@ function runScript(scriptPath: string, args: string[]): Promise<void> {
  * @param options - 扫描选项
  */
 export async function scan(options: ScanCommandOptions): Promise<void> {
-  let { config = 'ai-test.config.jsonc', output = 'reports', skipGit = false } = options
+  let config = options.config || 'ai-test.config.jsonc'
+  const output = options.output || 'reports'
+  const skipGit = options.skipGit || false
   
   // 1. 检查配置
   console.log('🔍 Step 1: Checking configuration...')
