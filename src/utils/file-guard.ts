@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 /**
  * File Guard - 文件写入保护
  * 
@@ -12,7 +11,10 @@
  */
 
 import { basename, extname, dirname, resolve, relative } from 'node:path'
-import { existsSync } from 'node:fs'
+
+// ============================================================================
+// Constants
+// ============================================================================
 
 /**
  * 允许的测试文件模式
@@ -44,10 +46,47 @@ const FORBIDDEN_PATTERNS = [
   /coverage\//,
 ]
 
+// ============================================================================
+// Type Definitions
+// ============================================================================
+
+/** Path check result */
+export interface PathCheckResult {
+  allowed: boolean
+  reason: string
+  category: 'valid_pattern' | 'forbidden_dir' | 'wrong_naming' | 'not_test_file'
+  suggestion?: string
+}
+
+/** File guard error with additional properties */
+export interface FileGuardError extends Error {
+  code: string
+  category: string
+  filePath: string
+}
+
+/** Guard result for a single file */
+export interface GuardResult {
+  filePath: string
+  check: PathCheckResult
+}
+
+/** Guard result for multiple files */
+export interface GuardMultipleResult {
+  allowed: GuardResult[]
+  blocked: Array<{ filePath: string; error: FileGuardError }>
+}
+
+// ============================================================================
+// Path Checking
+// ============================================================================
+
 /**
  * 检查文件路径是否安全
+ * @param filePath - 文件路径
+ * @returns 检查结果
  */
-export function isAllowedPath(filePath) {
+export function isAllowedPath(filePath: string): PathCheckResult {
   const normalizedPath = resolve(filePath)
   const relativePath = relative(process.cwd(), normalizedPath)
   
@@ -96,11 +135,17 @@ export function isAllowedPath(filePath) {
   }
 }
 
+// ============================================================================
+// File Guard
+// ============================================================================
+
 /**
  * 守卫文件写入操作
- * @throws {Error} 如果文件不允许写入
+ * @param filePath - 文件路径
+ * @returns 检查结果
+ * @throws {FileGuardError} 如果文件不允许写入
  */
-export function guardWrite(filePath) {
+export function guardWrite(filePath: string): PathCheckResult {
   const check = isAllowedPath(filePath)
   
   if (!check.allowed) {
@@ -119,7 +164,8 @@ export function guardWrite(filePath) {
       `  - __tests__/**/*.ts\n` +
       `\n` +
       `Reference: Qodo Cover - Minimum Privilege Principle`
-    )
+    ) as FileGuardError
+    
     error.code = 'FILE_GUARD_BLOCKED'
     error.category = check.category
     error.filePath = filePath
@@ -131,9 +177,11 @@ export function guardWrite(filePath) {
 
 /**
  * 批量检查文件路径
+ * @param filePaths - 文件路径数组
+ * @returns 批量检查结果
  */
-export function guardWriteMultiple(filePaths) {
-  const results = {
+export function guardWriteMultiple(filePaths: string[]): GuardMultipleResult {
+  const results: GuardMultipleResult = {
     allowed: [],
     blocked: []
   }
@@ -143,7 +191,7 @@ export function guardWriteMultiple(filePaths) {
       const check = guardWrite(filePath)
       results.allowed.push({ filePath, check })
     } catch (error) {
-      results.blocked.push({ filePath, error })
+      results.blocked.push({ filePath, error: error as FileGuardError })
     }
   }
   
@@ -153,8 +201,10 @@ export function guardWriteMultiple(filePaths) {
 /**
  * 获取安全的测试文件路径
  * 如果输入不安全，自动转换为安全路径
+ * @param sourcePath - 源文件路径
+ * @returns 安全的测试文件路径
  */
-export function getSafeTestPath(sourcePath) {
+export function getSafeTestPath(sourcePath: string): string {
   // 移除扩展名
   const ext = extname(sourcePath)
   const base = basename(sourcePath, ext)
@@ -176,10 +226,15 @@ export function getSafeTestPath(sourcePath) {
   return safePath
 }
 
+// ============================================================================
+// CLI Entry Point
+// ============================================================================
+
 /**
  * CLI 工具 - 检查文件路径
+ * @param argv - 命令行参数
  */
-async function main(argv = process.argv) {
+async function main(argv: string[] = process.argv): Promise<void> {
   const filePaths = argv.slice(2)
   
   if (filePaths.length === 0) {
@@ -225,4 +280,3 @@ Examples:
 if (import.meta.url === `file://${process.argv[1]}`) {
   main()
 }
-
