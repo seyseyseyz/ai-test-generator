@@ -66,7 +66,7 @@ function readTodoFunctions(reportPath: string, priority: any, limit: number) {
     // 解析表格行: | Status | Score | Priority | Name | Type | Layer | Path | ...
     const parts = line.split('|').map(p => p.trim()).filter(Boolean)
     if (parts.length >= 7) {
-    const [score, priority, status, funcName, type, layer, path] = fields.slice(0, 7).map((f: string) => f.trim())
+      const [_status, score, pri, name, _type, _layer, path] = parts
       todoFunctions.push({
         name,
         path,

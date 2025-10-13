@@ -156,7 +156,7 @@ async function callCursorAgent(promptPath: string): Promise<string> {
     })
     
     const chunks: Buffer[] = []
-    child.stdout.on((d: Buffer) => chunks.push(d))
+    child.stdout.on('data', (d: Buffer) => chunks.push(d))
     
     // 写入 prompt 到 stdin
     child.stdin.write(prompt)
