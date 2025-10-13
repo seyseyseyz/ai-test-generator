@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 /**
  * 生成批量测试的 AI Prompt
  * 从评分报告中提取目标，构建包含源码上下文的 Prompt

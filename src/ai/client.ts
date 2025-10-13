@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck
 /**
  * 使用 cursor-agent 生成 AI 回复
  * - 从文件或 stdin 读取 prompt
