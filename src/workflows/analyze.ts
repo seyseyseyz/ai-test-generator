@@ -112,9 +112,9 @@ export async function analyze(options: AnalyzeOptions): Promise<void> {
     process.exit(1)
   }
   
-  const validated = validateAndSanitize(parsed)
+  const validated = validateAndSanitize(parsed as { suggestions?: Record<string, unknown[]> })
   
-  const totalSuggestions = Object.values(validated).reduce((sum, arr) => sum + arr.length, 0)
+  const totalSuggestions = Object.values(validated).reduce((sum: number, arr: unknown[]) => sum + arr.length, 0)
   console.log(`   Validated ${totalSuggestions} suggestions\n`)
   
   if (totalSuggestions === 0) {
