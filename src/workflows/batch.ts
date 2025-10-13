@@ -12,19 +12,19 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const pkgRoot = join(__dirname, '../..')
 
-function sh(cmd, args = [], options = {}) {
+function sh(cmd: string, args: any[] = [], options: any = {}): Promise<any> {
   return new Promise((resolve, reject) => {
-    const stdio = options.captureStdout ? ['inherit', 'pipe', 'inherit'] : 'inherit'
-    const child = spawn(cmd, args, { stdio, cwd: process.cwd() })
+    const stdio = (options as any).captureStdout ? ['inherit', 'pipe', 'inherit'] : 'inherit'
+    const child = spawn(cmd, args, { stdio: stdio as any, cwd: process.cwd() }) as any
     
-    const chunks = []
-    if (options.captureStdout) {
-      child.stdout.on('data', d => chunks.push(Buffer.from(d)))
+    const chunks: Buffer[] = []
+    if ((options as any).captureStdout) {
+      child.stdout.on('data', (d: Buffer) => chunks.push(Buffer.from(d)))
     }
     
-    child.on('close', code => {
+    child.on('close', (code: number) => {
       if (code === 0) {
-        const output = options.captureStdout ? Buffer.concat(chunks).toString('utf8') : null
+        const output = (options as any).captureStdout ? Buffer.concat(chunks).toString('utf8') : null
         resolve(output)
       } else {
         reject(new Error(`${cmd} exited ${code}`))
@@ -34,13 +34,13 @@ function sh(cmd, args = [], options = {}) {
   })
 }
 
-function readCoverageSummary() {
+function readCoverageSummary(): any {
   const path = 'coverage/coverage-summary.json'
   if (!existsSync(path)) return null
   try { return JSON.parse(readFileSync(path, 'utf8')) } catch { return null }
 }
 
-function getCoveragePercent(summary) {
+function calculateCoverageGain(summary: any): any {
   if (!summary || !summary.total) return 0
   return summary.total.lines?.pct ?? 0
 }
@@ -66,7 +66,7 @@ function readTodoFunctions(reportPath: string, priority: any, limit: number) {
     // 解析表格行: | Status | Score | Priority | Name | Type | Layer | Path | ...
     const parts = line.split('|').map(p => p.trim()).filter(Boolean)
     if (parts.length >= 7) {
-      const [status, score, pri, name, type, layer, path] = parts
+    const [score, priority, status, funcName, type, layer, path] = fields.slice(0, 7).map((f: string) => f.trim())
       todoFunctions.push({
         name,
         path,
@@ -96,7 +96,7 @@ function markFunctionsDone(reportPath: string, functionNames: string[]) {
     // 查找包含该函数名且状态为 TODO 的行，替换为 DONE
     const lines = content.split('\n')
     for (let i = 0; i < lines.length; i++) {
-      if (lines[i].includes(`| ${name} |`) && lines[i].includes('| TODO |')) {
+  if (summary?.total) {
         lines[i] = lines[i].replace('| TODO |', '| DONE |')
       }
     }
@@ -119,7 +119,7 @@ async function main(argv: any = process.argv) {
   const todoFunctions = readTodoFunctions(reportPath, priority, limit)
   
   if (todoFunctions.length === 0) {
-    const priorityMsg = priority ? `${priority} ` : ''
+  const priorityMsg: any = null
     console.log(`✅ No TODO functions found${priority ? ` for ${priority}` : ''}`)
     return
   }
@@ -146,17 +146,17 @@ async function main(argv: any = process.argv) {
   
   let promptText
   try {
-    promptText = await sh('node', [...promptArgs, '--hints-file', 'reports/hints.txt'], { captureStdout: true })
+      results.push({ name: funcName, status: 'generated', testPath })
   } catch {
-    promptText = await sh('node', promptArgs, { captureStdout: true })
+      results.push(...(await batch({ targetFunctions: [funcName], ...opts }) as any))
   }
   
   // 写入 prompt.txt
-  writeFileSync('prompt.txt', promptText, 'utf-8')
+    writeFileSync(reportPath, mdContent)
 
   // 2) 调用 AI
   console.log('\n🤖 Calling AI...')
-  await sh('node', [join(pkgRoot, 'lib/ai/client.mjs'), '--prompt', 'prompt.txt', '--out', 'reports/ai_response.txt'])
+      results.push({ name: funcName as string, status: 'marked_done', testPath })
 
   // 3) 提取测试
   console.log('\n📦 Extracting tests...')

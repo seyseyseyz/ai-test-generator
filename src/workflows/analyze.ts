@@ -137,13 +137,13 @@ export async function analyze(options: any): Promise<void> {
 /**
  * 调用 Cursor Agent
  */
-async function callCursorAgent(promptPath: string) {
+async function callCursorAgent(promptPath: string): Promise<string> {
   return new Promise((resolve, reject) => {
     // 读取 prompt
-    let prompt
+    let prompt: string
     try {
       prompt = readFileSync(promptPath, 'utf-8')
-    } catch (err) {
+    } catch (err: any) {
       reject(new Error(`Failed to read prompt file: ${err.message}`))
       return
     }
@@ -155,8 +155,8 @@ async function callCursorAgent(promptPath: string) {
       cwd: process.cwd()
     })
     
-    const chunks = []
-    child.stdout.on('data', (d) => chunks.push(Buffer.from(d)))
+    const chunks: Buffer[] = []
+    child.stdout.on((d: Buffer) => chunks.push(d))
     
     // 写入 prompt 到 stdin
     child.stdin.write(prompt)
