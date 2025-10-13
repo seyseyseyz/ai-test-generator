@@ -212,8 +212,8 @@ export interface PromptContext {
   type: FunctionType
   dependencies?: string
   boundaries?: BoundaryAnalysis
-  mocks?: any  // MockAnalysis removed - use MockRequirement[] from core/mock-analyzer.ts
-  behaviors?: any  // BehaviorAnalysis removed - use Behavior[] from core/behavior-classifier.ts
+  mocks?: unknown  // MockAnalysis removed - use MockRequirement[] from core/mock-analyzer.ts
+  behaviors?: unknown  // BehaviorAnalysis removed - use Behavior[] from core/behavior-classifier.ts
   coverage?: CoverageData
   examples?: string
 }

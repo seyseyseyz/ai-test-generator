@@ -11,7 +11,7 @@ import type { FunctionTarget, FunctionType, Layer, AITestConfig } from '../types
  * List TypeScript source files with exclusions
  */
 async function listFiles(excludeDirs: string[] = []): Promise<string[]> {
-  const fg = (await requirePackage<{ default: (patterns: string | string[], options?: any) => Promise<string[]> }>('fast-glob', 'fast-glob')).default
+  const fg = (await requirePackage<{ default: (patterns: string | string[], options?: { dot?: boolean }) => Promise<string[]> }>('fast-glob', 'fast-glob')).default
   
   // 基础排除规则
   const baseExcludes = ['!**/*.d.ts', '!**/node_modules/**']
@@ -45,7 +45,7 @@ function decideTypeByPathAndName(filePath: string, exportName: string): Function
  * Determine layer by file path and config
  */
 function decideLayer(filePath: string, cfg: AITestConfig | null): Layer | 'unknown' {
-  const layers = (cfg as any)?.layers
+  const layers = cfg?.layers as Record<string, { patterns: string[] }> | undefined
   if (!layers) return 'unknown'
   
   // 标准化路径：移除反斜杠，去掉 src/ 前缀
@@ -56,7 +56,7 @@ function decideLayer(filePath: string, cfg: AITestConfig | null): Layer | 'unkno
   
   // 按优先级匹配层级（从最具体到最通用）
   for (const [layerKey, layerDef] of Object.entries(layers)) {
-    const patterns = (layerDef as any).patterns || []
+    const patterns = layerDef.patterns || []
     for (const pattern of patterns) {
       // 简单的 glob 匹配：支持 ** 和 *
       const regexPattern = pattern

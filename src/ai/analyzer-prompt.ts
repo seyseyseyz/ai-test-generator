@@ -18,7 +18,7 @@ export interface ProjectStats {
 /**
  * 构建分析 Prompt
  */
-export function buildAnalysisPrompt(samples: FileSample[], stats: ProjectStats, projectCtx: Record<string, any>): string {
+export function buildAnalysisPrompt(samples: FileSample[], stats: ProjectStats, projectCtx: Record<string, string | string[]>): string {
   return `You are analyzing a ${projectCtx.framework} codebase to identify business-critical paths and high-risk modules.
 
 ## 📊 Project Overview
@@ -26,7 +26,7 @@ export function buildAnalysisPrompt(samples: FileSample[], stats: ProjectStats, 
 - **Framework**: ${projectCtx.framework}
 - **Total Files**: ${stats.totalFiles}
 - **Total Lines**: ${stats.totalLines}
-- **Key Dependencies**: ${projectCtx.criticalDeps.join(', ') || 'None detected'}
+- **Key Dependencies**: ${Array.isArray(projectCtx.criticalDeps) ? projectCtx.criticalDeps.join(', ') : (projectCtx.criticalDeps || 'None detected')}
 
 ## 📂 Code Samples (${samples.length} files)
 

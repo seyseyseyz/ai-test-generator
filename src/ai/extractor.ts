@@ -33,7 +33,7 @@ export function extractTests(content: string, options: ExtractOptions = {}): Ext
 
   // 先尝试解析 JSON Manifest（优先）
   // 形如：```json { version: 1, files: [{ path, source, ... }] }
-  let manifest: any = null;
+  let manifest: { files?: Array<{ path: string }> } | null = null;
   const manifestRegex = /```json\s*\n([\s\S]*?)\n```/gi;
   let m: RegExpExecArray | null;
   while ((m = manifestRegex.exec(content)) !== null) {
@@ -46,7 +46,7 @@ export function extractTests(content: string, options: ExtractOptions = {}): Ext
       }
     } catch {}
   }
-  const manifestPaths = manifest?.files?.map((f: any) => String(f.path).trim()) ?? [];
+  const manifestPaths = manifest?.files?.map((f: { path: string }) => String(f.path).trim()) ?? [];
 
   // 再匹配多种文件代码块格式（回退/兼容，增强鲁棒性）
   const patterns = [

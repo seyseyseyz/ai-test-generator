@@ -219,7 +219,7 @@ export async function interactiveReview(validated: AISuggestions): Promise<AISug
         if (selectedIndices.has(globalIndex)) {
           const item = validated[category][localIndex]
           if (item) {
-            (result[category] as any[]).push(item)
+            (result[category] as unknown[]).push(item)
           }
         }
       })

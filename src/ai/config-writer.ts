@@ -94,7 +94,15 @@ function validateCoreConfigIntact(oldConfig: AITestConfig, newConfig: AITestConf
 /**
  * 获取嵌套对象的值
  */
-function getNestedValue(obj: Record<string, any>, path: string): unknown {
-  return path.split('.').reduce((curr: any, key: string) => curr?.[key], obj)
+function getNestedValue(obj: Record<string, unknown> | AITestConfig, path: string): unknown {
+  let curr: Record<string, unknown> | undefined = obj as Record<string, unknown>
+  for (const key of path.split('.')) {
+    if (curr && typeof curr === 'object') {
+      curr = curr[key] as Record<string, unknown> | undefined
+    } else {
+      return undefined
+    }
+  }
+  return curr
 }
 
