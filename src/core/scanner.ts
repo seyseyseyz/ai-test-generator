@@ -86,24 +86,24 @@ function getLoc(text: string, start: number, end: number): number {
  * Extract testable targets from source files
  */
 async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
-  const { Project, SyntaxKind } = await requirePackage('ts-morph', 'ts-morph')
+  const { Project: TsMorphProject, SyntaxKind: TsSyntaxKind, SourceFile: TsSourceFile, FunctionDeclaration: TsFunctionDeclaration, VariableDeclaration: TsVariableDeclaration } = await requirePackage('ts-morph', 'ts-morph')
   const cfg = loadJson('ut_scoring_config.json') || {}
   const internalInclude = cfg.internalInclude === true
   const minLoc = cfg?.internalThresholds?.minLoc ?? 15
 
-  const project = new Project({ skipAddingFilesFromTsConfig: true })
+  const project = new TsMorphProject({ skipAddingFilesFromTsConfig: true })
   files.forEach(f => project.addSourceFileAtPathIfExists(f))
 
   const targets: FunctionTarget[] = []
   
   // 辅助函数：判断变量是否为可测试的函数/组件
-  function isTestableVariable(v: VariableDeclaration): boolean {
+  function isTestableVariable(v: typeof TsVariableDeclaration.prototype): boolean {
     const init = v.getInitializer()
     if (!init) return false
     const kind = init.getKind()
     // 箭头函数、函数表达式、React组件（JSX）、HOC包装
-    if (kind === SyntaxKind.ArrowFunction || kind === SyntaxKind.FunctionExpression) return true
-    if (kind === SyntaxKind.CallExpression) {
+    if (kind === TsSyntaxKind.ArrowFunction || kind === TsSyntaxKind.FunctionExpression) return true
+    if (kind === TsSyntaxKind.CallExpression) {
       const text = init.getText()
       return /(React\.memo|forwardRef|memo|observer)\(/.test(text)
     }
@@ -113,7 +113,7 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
   // ✅ 文件级缓存：避免重复扫描每个文件的导入
   const fileImportsCache = new Map<string, string[]>()
   
-  function getCachedFileImports(sf: SourceFile): string[] {
+  function getCachedFileImports(sf: typeof TsSourceFile.prototype): string[] {
     const filePath = sf.getFilePath()
     if (fileImportsCache.has(filePath)) {
       return fileImportsCache.get(filePath) || []
@@ -145,7 +145,7 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
   }
 
   // ✅ 新增：提取函数的 AI 分析元数据
-  function extractMetadata(node: FunctionDeclaration | VariableDeclaration | undefined, sf: SourceFile): FunctionMetadata {
+  function extractMetadata(node: typeof TsFunctionDeclaration.prototype | typeof TsVariableDeclaration.prototype | undefined, sf: typeof TsSourceFile.prototype): FunctionMetadata {
     const metadata: FunctionMetadata = {
       criticalImports: [],
       businessEntities: [],
@@ -211,12 +211,12 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
       
       // 5. 统计异常处理（try-catch）
       if ('getDescendantsOfKind' in node && typeof node.getDescendantsOfKind === 'function') {
-        metadata.errorHandling = node.getDescendantsOfKind(SyntaxKind.TryStatement).length
+        metadata.errorHandling = node.getDescendantsOfKind(TsSyntaxKind.TryStatement).length
       }
       
       // 6. 统计外部 API 调用
       if ('getDescendantsOfKind' in node && typeof node.getDescendantsOfKind === 'function') {
-        const callExpressions = node.getDescendantsOfKind(SyntaxKind.CallExpression)
+        const callExpressions = node.getDescendantsOfKind(TsSyntaxKind.CallExpression)
         metadata.externalCalls = callExpressions.filter(call => {
           const expr = call.getExpression().getText()
           return /fetch|axios|\.get\(|\.post\(|\.put\(|\.delete\(/.test(expr)
