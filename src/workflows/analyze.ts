@@ -1,5 +1,6 @@
-/**
+#!/usr/bin/env node
 // @ts-nocheck
+/**
  * Analyze 工作流：AI 分析代码库并生成配置建议
  */
 
@@ -16,7 +17,7 @@ import { applyAISuggestions } from '../ai/config-writer.js'
 /**
  * AI 分析工作流
  */
-export async function analyze(options: any) {
+export async function analyze(options) {
   const { config, output } = options
   
   // 1. 检查配置是否存在

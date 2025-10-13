@@ -35,7 +35,7 @@ const QUALITY_STANDARDS = {
 /**
  * 执行命令
  */
-function sh(cmd, args = [], options = {}) {
+function sh(cmd, args, options) {
   return new Promise((resolve, reject) => {
     const stdio = options.captureStdout ? ['inherit', 'pipe', 'inherit'] : 'inherit'
     const child = spawn(cmd, args, { stdio, cwd: process.cwd() })

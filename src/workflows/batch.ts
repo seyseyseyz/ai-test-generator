@@ -13,7 +13,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const pkgRoot = join(__dirname, '../..')
 
-function sh(cmd: string, args: any[] = [], options: any = {}) {
+function sh(cmd, args = [], options = {}) {
   return new Promise((resolve, reject) => {
     const stdio = options.captureStdout ? ['inherit', 'pipe', 'inherit'] : 'inherit'
     const child = spawn(cmd, args, { stdio, cwd: process.cwd() })

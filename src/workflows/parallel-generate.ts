@@ -39,7 +39,7 @@ const CONCURRENCY_CONFIG = {
 /**
  * 辅助函数：运行子进程
  */
-function sh(cmd, args = [], options = {}) {
+function sh(cmd, args, options) {
   return new Promise((resolve, reject) => {
     const stdio = options.captureStdout ? ['inherit', 'pipe', 'inherit'] : 'inherit'
     const child = spawn(cmd, args, { 
