@@ -257,8 +257,9 @@ ${JSON.stringify({ version: 1, files }, null, 2)}
             behaviorsText = `\n${formatBehaviorsForPrompt(behaviors)}`
           }
         }
-      } catch (error) {
-        console.error(`⚠️  Analysis failed for ${target.name}:`, error.message)
+      } catch (error: unknown) {
+        const err = error as Error
+        console.error(`⚠️  Analysis failed for ${target.name}:`, err?.message || String(error))
       }
     }
     
@@ -336,9 +337,10 @@ export function runCLI(argv: string[] = process.argv): void {
     } else if (arg === '--framework') {
       options.framework = args[++i];
     } else if (arg === '--hints') {
-      options.customInstructions = (options.customInstructions || '') + `\n${args[++i]}`;
+      const hint = args[++i] || '';
+      options.customInstructions = (options.customInstructions || '') + `\n${hint}`;
     } else if (arg === '--hints-file') {
-      const p = args[++i];
+      const p = args[++i] || '';
       try { options.customInstructions = (options.customInstructions || '') + `\n${readFileSync(p, 'utf8')}` } catch {}
     } else if (arg === '--only-paths') {
       const csv = args[++i] || '';
