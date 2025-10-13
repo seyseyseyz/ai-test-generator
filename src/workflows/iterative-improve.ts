@@ -81,7 +81,7 @@ function getCoveragePercent(summary: any): number {
 async function evaluateQuality(beforeCov: number, iteration: number): Promise<any> {
   const startTime = Date.now()
   
-  const quality = {
+  const quality: any = {
     buildSuccess: false,
     testPass: false,
     coverageIncrease: 0,
@@ -93,7 +93,11 @@ async function evaluateQuality(beforeCov: number, iteration: number): Promise<an
       timestamp: new Date().toISOString(),
       buildTimeMs: 0,
       testTimeMs: 0,
-      temperature: QUALITY_STANDARDS.temperature
+      temperature: QUALITY_STANDARDS.temperature,
+      coverageBefore: 0,
+      coverageAfter: 0,
+      totalTimeMs: 0,
+      passesStandard: false
     }
   }
   
@@ -148,7 +152,7 @@ async function evaluateQuality(beforeCov: number, iteration: number): Promise<an
  * 计算候选测试的综合评分（用于 N-Sample 选择）
  * Meta 策略: 综合考虑构建、测试、覆盖率三个维度
  */
-function calculateCandidateScore(quality) {
+function calculateCandidateScore(quality: any): number {
   let score = 0
   
   // 1. 构建成功 (权重: 40%) - 最基础
@@ -172,8 +176,8 @@ function calculateCandidateScore(quality) {
 /**
  * 收集改进反馈
  */
-async function collectFeedback(quality, iteration) {
-  const feedback = {
+async function collectFeedback(quality: any, iteration: number): Promise<any> {
+  const feedback: any = {
     iteration,
     timestamp: new Date().toISOString(),
     issues: quality.feedback,
