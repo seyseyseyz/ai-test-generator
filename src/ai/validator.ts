@@ -9,11 +9,11 @@ const SCHEMA = {
     maxCount: 10,
     requiredFields: ['pattern', 'confidence', 'reason', 'suggestedBC', 'evidence'],
     validators: {
-      pattern: (v) => /^[a-z0-9_/-]+\/?\*?\*?$/.test(v),
-      confidence: (v) => v >= 0.85 && v <= 1.0,
-      suggestedBC: (v) => [8, 9, 10].includes(v),
-      reason: (v) => v.length > 0 && v.length <= 200,
-      evidence: (v) => Array.isArray(v) && v.length >= 2 && v.length <= 3
+      pattern: (v: any) => /^[a-z0-9_/-]+\/?\*?\*?$/.test(v),
+      confidence: (v: any) => v >= 0.85 && v <= 1.0,
+      suggestedBC: (v: any) => [8, 9, 10].includes(v),
+      reason: (v: any) => v.length > 0 && v.length <= 200,
+      evidence: (v: any) => Array.isArray(v) && v.length >= 2 && v.length <= 3
     }
   },
   highRiskModules: {
@@ -21,11 +21,11 @@ const SCHEMA = {
     maxCount: 10,
     requiredFields: ['pattern', 'confidence', 'reason', 'suggestedER', 'evidence'],
     validators: {
-      pattern: (v) => /^[a-z0-9_/-]+\/?\*?\*?$/.test(v),
-      confidence: (v) => v >= 0.75 && v <= 1.0,
-      suggestedER: (v) => [7, 8, 9, 10].includes(v),
-      reason: (v) => v.length > 0 && v.length <= 200,
-      evidence: (v) => Array.isArray(v) && v.length >= 2 && v.length <= 3
+      pattern: (v: any) => /^[a-z0-9_/-]+\/?\*?\*?$/.test(v),
+      confidence: (v: any) => v >= 0.75 && v <= 1.0,
+      suggestedER: (v: any) => [7, 8, 9, 10].includes(v),
+      reason: (v: any) => v.length > 0 && v.length <= 200,
+      evidence: (v: any) => Array.isArray(v) && v.length >= 2 && v.length <= 3
     }
   },
   testabilityAdjustments: {
@@ -33,11 +33,11 @@ const SCHEMA = {
     maxCount: 10,
     requiredFields: ['pattern', 'confidence', 'reason', 'adjustment', 'evidence'],
     validators: {
-      pattern: (v) => /^[a-z0-9_/-]+\/?\*?\*?$/.test(v),
-      confidence: (v) => v >= 0.80 && v <= 1.0,
-      adjustment: (v) => ['-2', '-1', '+1', '+2'].includes(v),
-      reason: (v) => v.length > 0 && v.length <= 200,
-      evidence: (v) => Array.isArray(v) && v.length >= 2 && v.length <= 3
+      pattern: (v: any) => /^[a-z0-9_/-]+\/?\*?\*?$/.test(v),
+      confidence: (v: any) => v >= 0.80 && v <= 1.0,
+      adjustment: (v: any) => ['-2', '-1', '+1', '+2'].includes(v),
+      reason: (v: any) => v.length > 0 && v.length <= 200,
+      evidence: (v: any) => Array.isArray(v) && v.length >= 2 && v.length <= 3
     }
   }
 }
@@ -45,7 +45,7 @@ const SCHEMA = {
 /**
  * 验证单个建议
  */
-function validateSuggestion(item, schema) {
+function validateSuggestion(item: any, schema: any) {
   // 检查必需字段
   for (const field of schema.requiredFields) {
     if (!(field in item)) {
@@ -60,7 +60,7 @@ function validateSuggestion(item, schema) {
   
   // 运行字段验证器
   for (const [field, validator] of Object.entries(schema.validators)) {
-    if (field in item && !validator(item[field])) {
+    if (field in item && !(validator as any)(item[field])) {
       return false
     }
   }
@@ -71,7 +71,7 @@ function validateSuggestion(item, schema) {
 /**
  * 验证并清洗 AI 响应
  */
-export function validateAndSanitize(parsed) {
+export function validateAndSanitize(parsed: any) {
   const result = {
     businessCriticalPaths: [],
     highRiskModules: [],
@@ -86,7 +86,7 @@ export function validateAndSanitize(parsed) {
   const suggestions = parsed.suggestions
   
   for (const [key, items] of Object.entries(suggestions)) {
-    const schema = SCHEMA[key]
+    const schema = (SCHEMA as any)[key]
     if (!schema || !Array.isArray(items)) continue
     
     const validated = items

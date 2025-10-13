@@ -17,16 +17,16 @@ const LOCKED_PATHS = [
   'aiEnhancement.enabled'
 ]
 
-const WRITABLE_PATHS = [
-  'aiEnhancement.analyzed',
-  'aiEnhancement.analyzedAt',
-  'aiEnhancement.suggestions'
-]
+// const WRITABLE_PATHS = [
+//   'aiEnhancement.analyzed',
+//   'aiEnhancement.analyzedAt',
+//   'aiEnhancement.suggestions'
+// ]
 
 /**
  * 应用 AI 建议到配置文件
  */
-export async function applyAISuggestions(configPath, suggestions) {
+export async function applyAISuggestions(configPath: string, suggestions: any) {
   // 1. 读取现有配置
   const config = readConfig(configPath)
   
@@ -67,7 +67,7 @@ export async function applyAISuggestions(configPath, suggestions) {
 /**
  * 验证写入权限
  */
-function validateWritePermissions(suggestions) {
+function validateWritePermissions(suggestions: any) {
   const allowedKeys = ['businessCriticalPaths', 'highRiskModules', 'testabilityAdjustments']
   
   for (const key of Object.keys(suggestions)) {
@@ -80,7 +80,7 @@ function validateWritePermissions(suggestions) {
 /**
  * 验证核心配置完整性
  */
-function validateCoreConfigIntact(oldConfig, newConfig) {
+function validateCoreConfigIntact(oldConfig: any, newConfig: any) {
   for (const path of LOCKED_PATHS) {
     const oldValue = getNestedValue(oldConfig, path)
     const newValue = getNestedValue(newConfig, path)
@@ -94,7 +94,7 @@ function validateCoreConfigIntact(oldConfig, newConfig) {
 /**
  * 获取嵌套对象的值
  */
-function getNestedValue(obj, path) {
-  return path.split('.').reduce((curr, key) => curr?.[key], obj)
+function getNestedValue(obj: any, path: string) {
+  return path.split('.').reduce((curr: any, key: string) => curr?.[key], obj)
 }
 
