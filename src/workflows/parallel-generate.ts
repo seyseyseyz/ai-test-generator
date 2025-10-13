@@ -255,9 +255,6 @@ async function generateBatch(batch: TodoFunction[], batchIndex: number, options:
     // 写入批次函数列表
     const batchListPath = join(batchDir, 'functions.txt')
     writeFileSync(batchListPath, batch.map(f => f.name).join('\n'), 'utf-8')
-    const reportArg = reportPath || 'reports/ut_scores.md'
-    promptArgs[1] = '--report'
-    promptArgs[2] = reportArg
     promptArgs.push('--function-list', batchListPath)
     
     let promptText: string | null = null
