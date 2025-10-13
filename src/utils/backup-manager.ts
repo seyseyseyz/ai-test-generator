@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 /**
  * Backup Manager - 自动备份管理器
  * 
@@ -11,17 +10,89 @@
  * Reference: Qodo Cover - Auto Backup System
  */
 
-import { existsSync, mkdirSync, copyFileSync, readFileSync, writeFileSync, readdirSync, statSync, unlinkSync } from 'node:fs'
+import { existsSync, mkdirSync, copyFileSync, writeFileSync, readdirSync, statSync, unlinkSync } from 'node:fs'
 import { join, dirname, basename } from 'node:path'
-import { createHash } from 'crypto'
+import { createHash } from 'node:crypto'
+
+// ============================================================================
+// Constants
+// ============================================================================
 
 const BACKUP_DIR = 'reports/backups'
 const MAX_BACKUPS_PER_FILE = 5  // 每个文件最多保留 5 个备份
 
+// ============================================================================
+// Type Definitions
+// ============================================================================
+
+/** Backup information */
+export interface BackupInfo {
+  file: string
+  path: string
+  size: number
+  created: Date
+  age: number
+}
+
+/** Backup result (success) */
+export interface BackupResultSuccess {
+  backed: true
+  reason: string
+  backupPath: string
+  originalSize: number
+  timestamp: string
+}
+
+/** Backup result (failure) */
+export interface BackupResultFailure {
+  backed: false
+  reason: string
+  backupPath: null
+  error?: any
+}
+
+/** Backup result (union type) */
+export type BackupResult = BackupResultSuccess | BackupResultFailure
+
+/** Restore result (success) */
+export interface RestoreResultSuccess {
+  restored: true
+  targetPath: string
+  backupPath: string
+  timestamp: string
+}
+
+/** Restore result (failure) */
+export interface RestoreResultFailure {
+  restored: false
+  error: string
+}
+
+/** Restore result (union type) */
+export type RestoreResult = RestoreResultSuccess | RestoreResultFailure
+
+/** Safe write file options */
+export interface SafeWriteOptions {
+  backup?: boolean
+  encoding?: BufferEncoding
+}
+
+/** Safe write result */
+export interface SafeWriteResult {
+  success: boolean
+  filePath: string
+  backupResult: BackupResult | null
+  size: number
+}
+
+// ============================================================================
+// Internal Utilities
+// ============================================================================
+
 /**
  * 初始化备份目录
  */
-function initBackupDir() {
+function initBackupDir(): void {
   if (!existsSync(BACKUP_DIR)) {
     mkdirSync(BACKUP_DIR, { recursive: true })
   }
@@ -29,8 +100,10 @@ function initBackupDir() {
 
 /**
  * 生成备份路径
+ * @param filePath - 原文件路径
+ * @returns 备份文件路径
  */
-function getBackupPath(filePath) {
+function getBackupPath(filePath: string): string {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
   const fileName = basename(filePath)
   const hash = createHash('md5').update(filePath).digest('hex').substring(0, 8)
@@ -39,9 +112,45 @@ function getBackupPath(filePath) {
 }
 
 /**
- * 备份文件
+ * 清理旧备份（保留最新 N 个）
+ * @param filePath - 原文件路径
  */
-export function backupFile(filePath) {
+function cleanupOldBackups(filePath: string): void {
+  const fileName = basename(filePath)
+  const hash = createHash('md5').update(filePath).digest('hex').substring(0, 8)
+  
+  // 找到该文件的所有备份
+  const backups = readdirSync(BACKUP_DIR)
+    .filter(file => file.startsWith(`${fileName}.${hash}.`))
+    .map(file => ({
+      file,
+      path: join(BACKUP_DIR, file),
+      time: statSync(join(BACKUP_DIR, file)).mtime
+    }))
+    .sort((a, b) => b.time.getTime() - a.time.getTime())  // 按时间倒序
+  
+  // 删除超出数量的备份
+  if (backups.length > MAX_BACKUPS_PER_FILE) {
+    backups.slice(MAX_BACKUPS_PER_FILE).forEach(backup => {
+      try {
+        unlinkSync(backup.path)
+      } catch (error) {
+        console.warn(`Failed to delete old backup: ${backup.file}`)
+      }
+    })
+  }
+}
+
+// ============================================================================
+// Public API
+// ============================================================================
+
+/**
+ * 备份文件
+ * @param filePath - 要备份的文件路径
+ * @returns 备份结果
+ */
+export function backupFile(filePath: string): BackupResult {
   initBackupDir()
   
   // 文件不存在，无需备份
@@ -69,9 +178,10 @@ export function backupFile(filePath) {
       timestamp: new Date().toISOString()
     }
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
     return {
       backed: false,
-      reason: `Backup failed: ${error.message}`,
+      reason: `Backup failed: ${message}`,
       backupPath: null,
       error
     }
@@ -79,38 +189,11 @@ export function backupFile(filePath) {
 }
 
 /**
- * 清理旧备份（保留最新 N 个）
- */
-function cleanupOldBackups(filePath) {
-  const fileName = basename(filePath)
-  const hash = createHash('md5').update(filePath).digest('hex').substring(0, 8)
-  
-  // 找到该文件的所有备份
-  const backups = readdirSync(BACKUP_DIR)
-    .filter(file => file.startsWith(`${fileName}.${hash}.`))
-    .map(file => ({
-      file,
-      path: join(BACKUP_DIR, file),
-      time: statSync(join(BACKUP_DIR, file)).mtime
-    }))
-    .sort((a, b) => b.time - a.time)  // 按时间倒序
-  
-  // 删除超出数量的备份
-  if (backups.length > MAX_BACKUPS_PER_FILE) {
-    backups.slice(MAX_BACKUPS_PER_FILE).forEach(backup => {
-      try {
-        unlinkSync(backup.path)
-      } catch (error) {
-        console.warn(`Failed to delete old backup: ${backup.file}`)
-      }
-    })
-  }
-}
-
-/**
  * 列出文件的所有备份
+ * @param filePath - 原文件路径
+ * @returns 备份信息数组
  */
-export function listBackups(filePath) {
+export function listBackups(filePath: string): BackupInfo[] {
   if (!existsSync(BACKUP_DIR)) {
     return []
   }
@@ -131,22 +214,30 @@ export function listBackups(filePath) {
         age: Date.now() - stats.mtime.getTime()
       }
     })
-    .sort((a, b) => b.created - a.created)  // 最新的在前
+    .sort((a, b) => b.created.getTime() - a.created.getTime())  // 最新的在前
 }
 
 /**
  * 恢复备份
+ * @param backupPath - 备份文件路径
+ * @param targetPath - 目标文件路径
+ * @returns 恢复结果
  */
-export function restoreBackup(backupPath, targetPath) {
+export function restoreBackup(backupPath: string, targetPath: string): RestoreResult {
   if (!existsSync(backupPath)) {
-    throw new Error(`Backup file not found: ${backupPath}`)
+    return {
+      restored: false,
+      error: `Backup file not found: ${backupPath}`
+    }
   }
   
   try {
     // 先备份当前文件（如果存在）
     if (existsSync(targetPath)) {
       const currentBackup = backupFile(targetPath)
-      console.log(`Current file backed up to: ${currentBackup.backupPath}`)
+      if (currentBackup.backed) {
+        console.log(`Current file backed up to: ${currentBackup.backupPath}`)
+      }
     }
     
     // 恢复备份
@@ -159,31 +250,43 @@ export function restoreBackup(backupPath, targetPath) {
       timestamp: new Date().toISOString()
     }
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
     return {
       restored: false,
-      error: error.message
+      error: message
     }
   }
 }
 
 /**
  * 获取最新备份
+ * @param filePath - 原文件路径
+ * @returns 最新备份信息，如果没有备份则返回 null
  */
-export function getLatestBackup(filePath) {
+export function getLatestBackup(filePath: string): BackupInfo | null {
   const backups = listBackups(filePath)
-  return backups.length > 0 ? backups[0] : null
+  return backups.length > 0 ? backups[0]! : null
 }
 
 /**
  * 安全写入文件（自动备份）
+ * @param filePath - 文件路径
+ * @param content - 文件内容
+ * @param options - 写入选项
+ * @returns 写入结果
+ * @throws 如果写入失败且无法恢复
  */
-export function safeWriteFile(filePath, content, options = {}) {
+export function safeWriteFile(
+  filePath: string, 
+  content: string, 
+  options: SafeWriteOptions = {}
+): SafeWriteResult {
   const { 
     backup = true,
     encoding = 'utf-8'
   } = options
   
-  let backupResult = null
+  let backupResult: BackupResult | null = null
   
   // 1. 备份
   if (backup && existsSync(filePath)) {
@@ -225,8 +328,9 @@ export function safeWriteFile(filePath, content, options = {}) {
 
 /**
  * 显示备份历史
+ * @param filePath - 原文件路径
  */
-export function showBackupHistory(filePath) {
+export function showBackupHistory(filePath: string): void {
   const backups = listBackups(filePath)
   
   if (backups.length === 0) {
@@ -250,10 +354,15 @@ export function showBackupHistory(filePath) {
   })
 }
 
+// ============================================================================
+// CLI Entry Point
+// ============================================================================
+
 /**
  * CLI 工具
+ * @param argv - 命令行参数
  */
-async function main(argv = process.argv) {
+async function main(argv: string[] = process.argv): Promise<void> {
   const [cmd, ...args] = argv.slice(2)
   
   if (!cmd) {
@@ -326,4 +435,3 @@ Examples:
 if (import.meta.url === `file://${process.argv[1]}`) {
   main()
 }
-
