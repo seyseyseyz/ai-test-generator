@@ -96,7 +96,7 @@ function markFunctionsDone(reportPath: string, functionNames: string[]) {
     // 查找包含该函数名且状态为 TODO 的行，替换为 DONE
     const lines = content.split('\n')
     for (let i = 0; i < lines.length; i++) {
-  if (summary?.total) {
+      if (lines[i].includes(name) && lines[i].includes('| TODO |')) {
         lines[i] = lines[i].replace('| TODO |', '| DONE |')
       }
     }
@@ -119,7 +119,6 @@ async function main(argv: any = process.argv) {
   const todoFunctions = readTodoFunctions(reportPath, priority, limit)
   
   if (todoFunctions.length === 0) {
-  const priorityMsg: any = null
     console.log(`✅ No TODO functions found${priority ? ` for ${priority}` : ''}`)
     return
   }
@@ -127,7 +126,7 @@ async function main(argv: any = process.argv) {
   console.log(`📝 Found ${todoFunctions.length} TODO functions`)
   
   // 记录初始覆盖率
-  const beforeCov = getCoveragePercent(readCoverageSummary())
+  const beforeCov: number = getCoveragePercent(readCoverageSummary())
 
   // 1) 生成 Prompt（只针对 TODO 函数，加入上一轮失败提示）
   const promptArgs = [
@@ -144,15 +143,16 @@ async function main(argv: any = process.argv) {
   promptArgs.push('--skip', String(skip))
   promptArgs.push('--only-todo') // 新增：只处理 TODO 状态
   
-  let promptText
+  let promptText: string
   try {
-      results.push({ name: funcName, status: 'generated', testPath })
-  } catch {
-      results.push(...(await batch({ targetFunctions: [funcName], ...opts }) as any))
+    promptText = await sh('node', promptArgs, { captureStdout: true }) as string
+  } catch (err: any) {
+    console.error('❌ Failed to generate prompt:', err.message)
+    return
   }
   
   // 写入 prompt.txt
-    writeFileSync(reportPath, mdContent)
+  writeFileSync('prompt.txt', promptText)
 
   // 2) 调用 AI
   console.log('\n🤖 Calling AI...')
