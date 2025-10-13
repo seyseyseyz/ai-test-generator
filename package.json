@@ -1,0 +1,99 @@
+{
+  "name": "ai-unit-test-generator",
+  "version": "2.4.0",
+  "description": "AI-powered unit test generator with smart priority scoring, parallel generation, behavior classification, boundary detection, and mock analysis",
+  "keywords": [
+    "unit-test",
+    "testing",
+    "priority",
+    "scoring",
+    "ai-test-generation",
+    "code-analysis",
+    "typescript",
+    "react",
+    "boundary-testing",
+    "mock-generation",
+    "cobertura",
+    "coverage",
+    "parallel",
+    "behavior-driven",
+    "concurrency",
+    "p-limit"
+  ],
+  "author": "YuhengZhou",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "ai-test": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
+    },
+    "./ai": {
+      "types": "./dist/ai/index.d.ts",
+      "import": "./dist/ai/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
+    },
+    "./workflows": {
+      "types": "./dist/workflows/index.d.ts",
+      "import": "./dist/workflows/index.js"
+    },
+    "./utils": {
+      "types": "./dist/utils/index.d.ts",
+      "import": "./dist/utils/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "templates",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist",
+    "prebuild": "npm run clean",
+    "prepublishOnly": "npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@eslint/js": "^9.17.0",
+    "commander": "^12.1.0",
+    "csv-stringify": "^6.5.2",
+    "escomplex": "^2.0.0-alpha",
+    "eslint": "^9.17.0",
+    "eslint-plugin-sonarjs": "^3.0.1",
+    "esprima": "^4.0.1",
+    "fast-glob": "^3.3.3",
+    "markdown-table": "^3.0.4",
+    "p-limit": "^5.0.0",
+    "ts-morph": "^24.0.0",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.19.1",
+    "xml2js": "^0.6.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YuhengZhou/ai-unit-test-generator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/YuhengZhou/ai-unit-test-generator/issues"
+  },
+  "homepage": "https://github.com/YuhengZhou/ai-unit-test-generator#readme"
+}

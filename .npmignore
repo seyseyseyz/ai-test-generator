@@ -1,0 +1,27 @@
+# Development files
+.npmrc
+node_modules/
+*.log
+
+# Test files
+test/
+tests/
+*.test.js
+*.spec.js
+
+# Documentation (keep README.md, CHANGELOG.md, LICENSE)
+docs/
+
+# Build artifacts
+*.tgz
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+

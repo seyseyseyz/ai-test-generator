@@ -1,0 +1,372 @@
+{
+  // ========== 核心评分配置 ==========
+  "scoringMode": "layered", // 评分模式: "layered"(分层) 或 "legacy"(传统)
+  "round": { 
+    "mode": "floor",        // 取整模式: floor(向下) / ceil(向上) / round(四舍五入)
+    "digits": 2             // 保留小数位数
+  },
+
+  // ========== 扫描目标配置 ==========
+  "providers": ["func"],    // 扫描目标类型: func(函数) / class(类) / method(方法)
+  "targetGeneration": {
+    "excludeDirs": []       // 排除的目录，例如: ["__tests__", "node_modules"]
+  },
+  "internalInclude": true,  // 是否包含内部函数（非导出函数）
+  "internalThresholds": {
+    "minLoc": 15,           // 内部函数最小行数阈值
+    "bonusLoc": 50,         // 超过此行数给予额外关注
+    "excludePatterns": [    // 排除的文件模式
+      "**/__tests__/**", 
+      "**/*.spec.ts", 
+      "**/*.spec.tsx"
+    ]
+  },
+
+  // ========== 分层架构配置 ==========
+  // 测试金字塔：Foundation(底层) -> Business Logic -> State Management -> UI Components(顶层)
+  "layers": {
+    // 基础工具层：纯函数、工具函数、无依赖的基础代码
+    "foundation": {
+      "name": "Foundation (基础工具层)",
+      "description": "纯函数、工具函数、无依赖的基础代码",
+      "patterns": ["utils/**", "constants/**", "config/**", "types/**"],
+      "characteristics": {
+        "isPure": true,             // 是否为纯函数
+        "noDependencies": true,     // 是否无依赖
+        "multipleReferences": true  // 是否被多处引用
+      },
+      "weights": {
+        "testability": 0.45,        // 可测试性权重（最高）
+        "dependencyCount": 0.25,    // 依赖数量权重
+        "complexity": 0.20,         // 复杂度权重
+        "coverage": 0.10            // 覆盖率权重
+      },
+      "thresholds": { "P0": 7.5, "P1": 6.0, "P2": 4.0 },
+      "coverageTarget": 100,        // 目标覆盖率 100%
+      "autoP0": false
+    },
+    
+    // 业务逻辑层：包含业务规则的函数，不包含UI
+    "business": {
+      "name": "Business Logic (业务逻辑层)",
+      "description": "包含业务规则的函数，不包含UI",
+      "patterns": ["services/**", "stores/**", "hooks/**"],
+      "characteristics": {
+        "hasBusinessRules": true,
+        "noUI": true,
+        "mayDependOnUtils": true
+      },
+      "weights": {
+        "businessCriticality": 0.35,  // 业务关键度权重（最高）
+        "complexity": 0.25,
+        "errorRisk": 0.25,
+        "coverage": 0.15
+      },
+      "thresholds": { "P0": 8.0, "P1": 6.5, "P2": 4.5 },
+      "coverageTarget": 80
+    },
+    
+    // 状态管理层：Jotai atoms、Zustand stores等
+    "state": {
+      "name": "State Management (状态管理层)",
+      "description": "Jotai atoms、Zustand stores等状态管理",
+      "patterns": ["atoms/**", "stores/**"],
+      "characteristics": {
+        "isStateManagement": true,
+        "connectsLogicAndUI": true
+      },
+      "weights": {
+        "businessCriticality": 0.45,
+        "complexity": 0.25,
+        "errorRisk": 0.20,
+        "coverage": 0.10
+      },
+      "thresholds": { "P0": 8.0, "P1": 6.5, "P2": 4.5 },
+      "coverageTarget": 70
+    },
+    
+    // UI组件层：React组件、包含交互逻辑
+    "ui": {
+      "name": "UI Components (UI组件层)",
+      "description": "React组件、包含交互逻辑",
+      "patterns": ["components/**", "pages/**", "context/**"],
+      "characteristics": {
+        "isReactComponent": true,
+        "hasInteraction": true
+      },
+      "weights": {
+        "businessCriticality": 0.35,
+        "complexity": 0.25,
+        "testability": 0.25,
+        "coverage": 0.15
+      },
+      "thresholds": { "P0": 8.5, "P1": 7.0, "P2": 5.0 },
+      "coverageTarget": 50        // UI层目标覆盖率适当降低
+    }
+  },
+
+  // ========== 覆盖率评分配置 ==========
+  // 参考: Meta TestGen-LLM 覆盖率增量验证
+  "coverageScoring": {
+    "naScore": 5,            // 无覆盖率数据时的默认分数
+    "mapping": [             // 覆盖率百分比到分数的映射（覆盖率越低，分数越高，优先级越高）
+      { "lte": 0, "score": 10 },      // 0% 覆盖率 -> 最高优先级
+      { "lte": 40, "score": 8 },      // ≤40% -> 高优先级
+      { "lte": 70, "score": 6 },      // ≤70% -> 中等优先级
+      { "lte": 90, "score": 3 },      // ≤90% -> 低优先级
+      { "lte": 100, "score": 1 }      // 100% 覆盖率 -> 最低优先级
+    ]
+  },
+
+  // ========== 覆盖率自动扫描配置 ==========
+  "coverage": {
+    "runBeforeScan": true,                    // 是否在扫描前自动运行覆盖率分析
+    "command": "npx jest --coverage --silent" // 覆盖率分析命令
+  },
+
+  // ========== 传统评分模式的权重配置 ==========
+  // 仅在 scoringMode: "legacy" 时使用
+  "weights": {
+    "BC": 0.25,              // Business Criticality (业务关键度)
+    "CC": 0.15,              // Cyclomatic Complexity (圈复杂度)
+    "ER": 0.15,              // Error Risk (错误风险)
+    "ROI": 0.15,             // Return on Investment (投资回报率，即可测试性)
+    "dependencyCount": 0.10, // 依赖数量
+    "coverage": 0.20         // 覆盖率权重（新增，参考 CodeScene 的热点分析）
+  },
+  "thresholds": { "P0": 8.0, "P1": 6.5, "P2": 4.5 },
+
+  // ========== 覆盖率加成配置 ==========
+  // 参考: ISTQB 风险驱动测试
+  "coverageBoost": { 
+    "enable": true,
+    "threshold": 60,   // 覆盖率低于此值时启用加成
+    "scale": 0.5,      // 加成系数
+    "maxBoost": 0.5    // 最大加成值
+  },
+
+  // ========== 复杂度融合配置 ==========
+  // 圈复杂度 + 认知复杂度融合
+  "ccFusion": {
+    "useCognitive": true,  // 是否启用认知复杂度
+    "cyclomaticT": 15,     // 圈复杂度阈值
+    "cognitiveT": 25,      // 认知复杂度阈值
+    "wC": 0.7,             // 圈复杂度权重
+    "wK": 0.3,             // 认知复杂度权重
+    "cap": 10              // 最大分数上限
+  },
+
+  // ========== 复杂度调整配置 ==========
+  "ccAdjust": {
+    "depthW": 0.2,           // 深度权重
+    "branchesW": 0.2,        // 分支数权重
+    "paramsW": 0.1,          // 参数数量权重
+    "locBonusThreshold": 50, // 行数加成阈值
+    "locBonus": 1            // 行数加成分数
+  },
+
+  // ========== 业务关键度关键词配置 ==========
+  // 参考: ISTQB 风险驱动测试 - API表面暴露度
+  "bcKeywords": {
+    "10": ["price", "booking", "payment", "checkout"],  // 支付核心
+    "9": ["recommend", "search"],                       // 搜索推荐
+    "8": ["filter", "list"],                            // 列表筛选
+    "7": ["login", "order", "config"],                  // 登录配置
+    "5": ["navigation", "seo", "header"],               // 导航SEO
+    "3": ["log", "trace", "decor"]                      // 日志装饰
+  },
+
+  // ========== 主链路配置 ==========
+  "mainChainPaths": [],           // 主链路路径，例如: ["src/services/booking/**"]
+  "bcCapForNonMainChain": 8,      // 非主链路业务关键度上限
+
+  // ========== 圈复杂度映射配置 ==========
+  "ccMapping": {
+    "cyclomatic": [
+      { "gt": 15, "score": 10 },              // >15 -> 最复杂
+      { "gte": 11, "lte": 15, "score": 10 },  // 11-15 -> 高复杂
+      { "gte": 6, "lte": 10, "score": 9 },    // 6-10 -> 中等复杂
+      { "gte": 3, "lte": 5, "score": 7 },     // 3-5 -> 低复杂
+      { "lte": 2, "score": 6 }                // ≤2 -> 简单
+    ],
+    "adjustments": [  // 额外复杂度调整规则
+      { "field": "maxDepth", "op": ">=", "value": 4, "delta": 1 },    // 深度≥4 +1分
+      { "field": "branches", "op": ">=", "value": 12, "delta": 1 },   // 分支≥12 +1分
+      { "field": "params", "op": ">=", "value": 6, "delta": 1 },      // 参数≥6 +1分
+      { "field": "statements", "op": ">=", "value": 80, "delta": 1 }, // 语句≥80 +1分
+      { "field": "cognitive", "op": ">=", "value": 25, "delta": 1 }   // 认知≥25 +1分
+    ],
+    "cap": 10,
+    "platformAdjust": { 
+      "delta": 1,              // 平台相关代码额外+1分
+      "cap": 10, 
+      "skipIfLikelihoodGte": 4 // 如果错误可能性≥4则跳过此调整
+    }
+  },
+
+  // ========== 降级复杂度映射配置 ==========
+  "fallbackMapping": {
+    "conditions": [
+      { "gt": 12, "score": 10 },
+      { "gte": 8, "lte": 12, "score": 8 },
+      { "gte": 5, "lte": 7, "score": 6 },
+      { "gte": 3, "lte": 4, "score": 4 },
+      { "lte": 2, "score": 2 }
+    ],
+    "nesting": [
+      { "gte": 4, "delta": 2 },
+      { "eq": 3, "delta": 1 }
+    ],
+    "earlyReturns": [
+      { "gte": 4, "delta": 1 }
+    ],
+    "paramsOrSources": [
+      { "paramsGte": 6, "delta": 1 },
+      { "sourcesGte": 3, "delta": 1 }
+    ],
+    "cap": 10
+  },
+
+  // ========== 依赖图配置 ==========
+  "depGraph": {
+    "enable": true,
+    "neighborCategoryBoost": 2,  // 邻近类别加成
+    "degreeBoost": 8             // 依赖度加成
+  },
+
+  // ========== 错误风险矩阵配置 ==========
+  // 参考: Meta TestGen-LLM 稳定性重跑验证
+  // ER = 错误可能性 (Likelihood) × 影响度 (Impact)
+  "erMatrix": {
+    "5": { "5": 10, "4": 9, "3": 8, "2": 7, "1": 6 },  // 可能性=5
+    "4": { "5": 9, "4": 8, "3": 7, "2": 6, "1": 5 },   // 可能性=4
+    "3": { "5": 8, "4": 7, "3": 6, "2": 5, "1": 4 },   // 可能性=3
+    "2": { "5": 7, "4": 6, "3": 5, "2": 4, "1": 3 },   // 可能性=2
+    "1": { "5": 6, "4": 5, "3": 4, "2": 3, "1": 2 }    // 可能性=1
+  },
+
+  // ========== 错误可能性规则配置 ==========
+  // 参考: CodeScene 的变更频率（Churn）分析
+  "likelihoodRules": [
+    { "field": "commits30d", "op": ">=", "value": 6, "score": 5 },           // 30天内≥6次提交 -> 高频变更
+    { "field": "commits30d", "op": "between", "min": 3, "max": 5, "score": 4 },
+    { "field": "commits30d", "op": "between", "min": 1, "max": 2, "score": 3 },
+    { "field": "fallback90d", "op": "gt", "value": 0, "score": 2 },          // 90天内有变更
+    { "field": "fallback180dZero", "op": "eq", "value": true, "score": 1 }   // 180天内无变更
+  ],
+
+  // ========== 加成规则配置 ==========
+  "boostRules": {
+    "authors30dGte": 3,    // 30天内贡献者≥3人
+    "crossModule": true,   // 跨模块引用
+    "multiPlatform": true, // 多平台代码
+    "cap": 5               // 加成上限
+  },
+
+  // ========== 跨模块类别配置 ==========
+  "crossModuleCategories": ["components", "hooks", "utils", "services", "pages"],
+
+  // ========== 本地提示映射配置 ==========
+  "hintMaps": {
+    "impactLocal": "configs/impact.local.json",
+    "roiLocal": "configs/roi.local.json"
+  },
+
+  // ========== 覆盖配置 ==========
+  "overrides": "reports/overrides.json",
+
+  // ========== 影响度关键词配置 ==========
+  "impactKeywords": {
+    "5": ["payment", "booking", "price"],
+    "4": ["filter", "list", "display"],
+    "3": ["interaction"],
+    "2": ["minor", "ui"],
+    "1": ["decor", "cosmetic"]
+  },
+
+  // ========== 可测试性规则配置 ==========
+  // 纯函数和可注入函数最适合AI生成测试
+  "testabilityRules": {
+    "pure": 10,             // 纯函数 -> 最易测试
+    "injectable": 9,        // 依赖注入 -> 很易测试
+    "multiContext": 7,      // 多上下文 -> 中等难度
+    "nativeOrNetwork": 5,   // 原生API/网络 -> 需要Mock
+    "needsUI": 3            // 需要UI环境 -> 较难测试
+  },
+
+  // ========== 依赖数量映射配置 ==========
+  // 依赖越多，集成风险越高，测试价值越高
+  "dependencyCountMapping": [
+    { "gte": 10, "score": 10 },       // ≥10个依赖 -> 高集成风险
+    { "gte": 5, "lt": 10, "score": 10 },
+    { "gte": 3, "lt": 5, "score": 9 },
+    { "gte": 1, "lt": 3, "score": 7 },
+    { "eq": 0, "score": 5 }           // 0个依赖 -> 纯函数（低风险但高可测试性）
+  ],
+
+  // ========== 降级默认值配置 ==========
+  "fallbacks": { 
+    "BC": 6,           // 业务关键度默认值
+    "CC": 6,           // 复杂度默认值
+    "ERLikelihood": 3, // 错误可能性默认值
+    "Testability": 6   // 可测试性默认值
+  },
+  
+  // ========== AI 增强配置（AI 唯一可写区域）==========
+  
+  "aiEnhancement": {
+    "enabled": true,        // 是否启用 AI 增强
+    "analyzed": false,      // 是否已完成 AI 分析
+    "analyzedAt": null,     // 分析时间戳
+    
+    // ✅ 业务实体关键词（用于 AST 扫描识别业务对象）
+    "entityKeywords": [
+      "Payment", "Order", "Booking", "User", "Hotel", "Room", 
+      "Cart", "Price", "Guest", "Request", "Response"
+    ],
+    
+    // AI 建议（由 ai-test analyze 填充）
+    "suggestions": {
+      "businessCriticalPaths": [
+        // 示例：
+        // {
+        //   "pattern": "services/payment/**",
+        //   "confidence": 0.95,
+        //   "reason": "Handles Stripe payment processing",
+        //   "suggestedBC": 10,
+        //   "evidence": [
+        //     "Contains processPayment with Stripe API",
+        //     "Referenced by checkout flow",
+        //     "Handles money transactions"
+        //   ]
+        // }
+      ],
+      "highRiskModules": [
+        // 示例：
+        // {
+        //   "pattern": "utils/date/**",
+        //   "confidence": 0.88,
+        //   "reason": "Complex timezone calculations",
+        //   "suggestedER": 8,
+        //   "evidence": [
+        //     "Multiple timezone conversions",
+        //     "Handles DST edge cases"
+        //   ]
+        // }
+      ],
+      "testabilityAdjustments": [
+        // 示例：
+        // {
+        //   "pattern": "utils/**",
+        //   "confidence": 0.92,
+        //   "reason": "Pure functions, easy to test",
+        //   "adjustment": "+1",
+        //   "evidence": [
+        //     "No side effects",
+        //     "No external dependencies"
+        //   ]
+        // }
+      ]
+    }
+  }
+}
