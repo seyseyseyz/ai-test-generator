@@ -64,9 +64,3 @@ export interface SuggestionSchema {
   requiredFields: string[]
   validators: Record<string, (value: unknown) => boolean>
 }
-
-/**
- * Generic validator function type
- */
-export type Validator = (value: unknown) => boolean
-
