@@ -559,9 +559,42 @@ ai-unit-test-generator/
 ### Architecture Principles
 
 - **Layered Design**: Clear separation between core analysis, AI interaction, testing, and workflows
-- **Zero AI Dependency in Core**: `lib/core/` can be used without AI features
-- **Modular Exports**: Each layer has `index.mjs` for clean API
+- **Zero AI Dependency in Core**: Core modules can be used without AI features
+- **Modular Exports**: Each layer has clean API exports
 - **Programmatic API**: All workflows can be imported and used programmatically
+
+## 🏗️ Project Architecture (v3.0+)
+
+### TypeScript Migration
+
+Starting from v3.0.0, the project has been fully migrated to TypeScript:
+
+```
+src/
+├── shared/          ✨ Shared utilities layer (NEW in v3.0.1)
+│   ├── cli-utils.ts    - CLI parsing, messages
+│   ├── file-utils.ts   - File I/O, JSONC support
+│   ├── process-utils.ts - Commands, packages
+│   └── path-utils.ts   - Paths, glob matching
+├── types/           📘 Type definitions (5 modules)
+│   ├── index.ts        - Core types
+│   ├── cli.ts          - CLI options
+│   ├── coverage.ts     - Coverage data
+│   ├── quality.ts      - Quality metrics
+│   └── parallel.ts     - Parallel config
+├── core/            🧠 Analysis engine
+├── ai/              🤖 AI interaction
+├── testing/         ✅ Test execution
+├── workflows/       🔄 Orchestration
+└── cli.ts           🎯 CLI entry
+```
+
+### Key Improvements
+
+- **Type Coverage**: 39% fully typed (growing)
+- **Code Quality**: 85%+ duplicate code eliminated
+- **Architecture**: Shared utilities layer for consistency
+- **Documentation**: See [TYPESCRIPT_MIGRATION.md](./TYPESCRIPT_MIGRATION.md) and [STRUCTURE_OPTIMIZATION.md](./STRUCTURE_OPTIMIZATION.md)
 
 ## 🤝 Contributing
 
