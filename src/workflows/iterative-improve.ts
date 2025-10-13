@@ -479,7 +479,7 @@ export async function iterativeImprove(options: IterativeImproveOptions = {}): P
  */
 async function main(argv: string[] = process.argv): Promise<void> {
   const args = argv.slice(2)
-  const reportPath = args[0] || 'reports/ut_scores.md'
+  const reportPath = args[0]
   const maxIterations = parseInt(args[1]) || QUALITY_STANDARDS.maxIterations
   
   try {
