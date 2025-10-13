@@ -1,12 +1,12 @@
-// @ts-nocheck
 /**
+// @ts-nocheck
  * AI 分析 Prompt 构建器
  */
 
 /**
  * 构建分析 Prompt
  */
-export function buildAnalysisPrompt(samples, stats, projectCtx) {
+export function buildAnalysisPrompt(samples: any, stats: any, projectCtx: any) {
   return `You are analyzing a ${projectCtx.framework} codebase to identify business-critical paths and high-risk modules.
 
 ## 📊 Project Overview

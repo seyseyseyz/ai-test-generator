@@ -13,7 +13,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const pkgRoot = join(__dirname, '../..')
 
-function sh(cmd, args = [], options = {}) {
+function sh(cmd: string, args: any[] = [], options: any = {}) {
   return new Promise((resolve, reject) => {
     const stdio = options.captureStdout ? ['inherit', 'pipe', 'inherit'] : 'inherit'
     const child = spawn(cmd, args, { stdio, cwd: process.cwd() })
@@ -49,7 +49,7 @@ function getCoveragePercent(summary) {
 /**
  * 从报告中读取 TODO 函数列表
  */
-function readTodoFunctions(reportPath, priority, limit) {
+function readTodoFunctions(reportPath: string, priority: any, limit: number) {
   if (!existsSync(reportPath)) {
     throw new Error(`Report not found: ${reportPath}`)
   }
@@ -88,7 +88,7 @@ function readTodoFunctions(reportPath, priority, limit) {
 /**
  * 标记函数状态为 DONE
  */
-function markFunctionsDone(reportPath, functionNames) {
+function markFunctionsDone(reportPath: string, functionNames: string[]) {
   if (!existsSync(reportPath)) return
   
   let content = readFileSync(reportPath, 'utf-8')
@@ -107,7 +107,7 @@ function markFunctionsDone(reportPath, functionNames) {
   writeFileSync(reportPath, content, 'utf-8')
 }
 
-async function main(argv = process.argv) {
+async function main(argv: any = process.argv) {
   const args = argv.slice(2)
   const priority = args[0] && args[0] !== 'undefined' ? args[0] : null
   const limit = Number(args[1] || 10)

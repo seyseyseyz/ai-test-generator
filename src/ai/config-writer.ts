@@ -1,5 +1,5 @@
-// @ts-nocheck
 /**
+// @ts-nocheck
  * 安全的配置写入器
  */
 

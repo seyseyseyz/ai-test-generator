@@ -1,5 +1,5 @@
-// @ts-nocheck
 /**
+// @ts-nocheck
  * AI 响应验证器
  */
 

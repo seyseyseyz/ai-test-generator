@@ -1,5 +1,5 @@
-// @ts-nocheck
 /**
+// @ts-nocheck
  * 项目上下文构建工具
  */
 

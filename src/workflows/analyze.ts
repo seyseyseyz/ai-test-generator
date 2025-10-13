@@ -1,5 +1,5 @@
-// @ts-nocheck
 /**
+// @ts-nocheck
  * Analyze 工作流：AI 分析代码库并生成配置建议
  */
 
@@ -16,7 +16,7 @@ import { applyAISuggestions } from '../ai/config-writer.js'
 /**
  * AI 分析工作流
  */
-export async function analyze(options) {
+export async function analyze(options: any) {
   const { config, output } = options
   
   // 1. 检查配置是否存在
@@ -136,7 +136,7 @@ export async function analyze(options) {
 /**
  * 调用 Cursor Agent
  */
-async function callCursorAgent(promptPath) {
+async function callCursorAgent(promptPath: string) {
   return new Promise((resolve, reject) => {
     // 读取 prompt
     let prompt

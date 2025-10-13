@@ -1,5 +1,5 @@
 /**
- * Behavior 分类系统（Qodo Cover 风格）
+ * Behavior 分类系统
  * 
  * 将测试场景分类为不同的行为类别，确保全面覆盖。
  * 
