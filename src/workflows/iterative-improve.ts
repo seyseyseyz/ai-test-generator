@@ -273,8 +273,8 @@ export async function iterativeImprove(options: any = {}): Promise<void> {
           
           // 保存候选结果到临时目录
           const candidateDir = `reports/candidates/iter${iteration}_sample${sampleIdx}`
-          await sh('mkdir', ['-p', candidateDir])
-          await sh('cp', ['-r', 'coverage', `${candidateDir}/`]).catch(() => {})
+          await sh('mkdir', ['-p', candidateDir], {})
+          await sh('cp', ['-r', 'coverage', `${candidateDir}/`], {}).catch(() => {})
           
           candidates.push({
             sampleIdx,
@@ -296,21 +296,22 @@ export async function iterativeImprove(options: any = {}): Promise<void> {
         
         // 恢复最佳候选的覆盖率数据
         const bestCandidateDir = `reports/candidates/iter${iteration}_sample${bestCandidate.sampleIdx}`
-        await sh('cp', ['-r', `${bestCandidateDir}/coverage`, '.']).catch(() => {})
+        await sh('cp', ['-r', `${bestCandidateDir}/coverage`, '.'], {}).catch(() => {})
         
         quality = bestCandidate.quality
       } else {
         // 单样本模式（原有逻辑）
         await sh('node', [
           join(PKG_ROOT, 'lib/workflows/batch.mjs'),
-          null, // priority
+          'null', // priority
           '10', // limit
           '0',  // skip
           reportPath
-        ])
+        ], {})
       }
-    } catch (err) {
-      console.error(`❌ Generation failed: ${err.message}`)
+    } catch (err: unknown) {
+      const error = err as Error
+      console.error(`❌ Generation failed: ${error?.message || String(err)}`)
       break
     }
     
