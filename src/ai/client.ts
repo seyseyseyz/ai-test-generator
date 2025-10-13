@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 /**
  * 使用 cursor-agent 生成 AI 回复
  * - 从文件或 stdin 读取 prompt
@@ -11,23 +10,44 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { spawn } from 'node:child_process'
 
-function parseArgs(argv) {
-  const args = {}
+interface ParsedArgs {
+  [key: string]: string | boolean
+}
+
+function parseArgs(argv: string[]): ParsedArgs {
+  const args: ParsedArgs = {}
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i]
-    if (a.startsWith('--')) {
+    if (a && a.startsWith('--')) {
       const [k, v] = a.includes('=') ? a.split('=') : [a, argv[i + 1]]
-      args[k.replace(/^--/, '')] = v === undefined || v.startsWith('--') ? true : v
-      if (v !== undefined && !v.startsWith('--') && !a.includes('=')) i++
+      if (k) {
+        args[k.replace(/^--/, '')] = v === undefined || (v && v.startsWith('--')) ? true : v
+      }
+      if (v !== undefined && v && !v.startsWith('--') && !a.includes('=')) i++
     }
   }
   return args
 }
 
-export async function runOnce({ prompt, promptFile, out = 'reports/ai_response.txt', model, temperature = 0.4, timeoutSec = 600 }) {
-  if (!prompt) {
+interface RunOnceOptions {
+  prompt?: string
+  promptFile?: string
+  out?: string
+  model?: string
+  temperature?: number
+  timeoutSec?: number
+}
+
+interface RunOnceResult {
+  out: string
+  bytes: number
+}
+
+export async function runOnce({ prompt, promptFile, out = 'reports/ai_response.txt', model, temperature = 0.4, timeoutSec = 600 }: RunOnceOptions): Promise<RunOnceResult> {
+  let finalPrompt = prompt
+  if (!finalPrompt) {
     if (!promptFile || !existsSync(promptFile)) throw new Error(`Prompt file not found: ${promptFile}`)
-    prompt = readFileSync(promptFile, 'utf8')
+    finalPrompt = readFileSync(promptFile, 'utf8')
   }
 
   return new Promise((resolve, reject) => {
@@ -38,11 +58,11 @@ export async function runOnce({ prompt, promptFile, out = 'reports/ai_response.t
 
     const child = spawn('cursor-agent', args, { stdio: ['pipe', 'pipe', 'inherit'] })
 
-    const chunks = []
-    child.stdout.on('data', d => chunks.push(Buffer.from(d)))
+    const chunks: Buffer[] = []
+    child.stdout.on('data', (d: Buffer) => chunks.push(d))
 
     // 写入 prompt 到 stdin
-    child.stdin.write(prompt)
+    child.stdin.write(finalPrompt)
     child.stdin.end()
 
     const to = setTimeout(() => {
@@ -61,20 +81,21 @@ export async function runOnce({ prompt, promptFile, out = 'reports/ai_response.t
   })
 }
 
-export async function runCLI(argv = process.argv) {
+export async function runCLI(argv: string[] = process.argv): Promise<void> {
   const args = parseArgs(argv)
   // 支持 --prompt, --prompt-file, --promptFile 三种形式
-  const promptFile = args['prompt'] || args['prompt-file'] || args['promptFile'] || null
-  const out = args['out'] || 'reports/ai_response.txt'
-  const model = args['model'] || null
+  const promptFile = (args['prompt'] || args['prompt-file'] || args['promptFile'] || null) as string | null
+  const out = (args['out'] || 'reports/ai_response.txt') as string
+  const model = (args['model'] || null) as string | null
   const temperature = args['temperature'] ? Number(args['temperature']) : 0.4  // Meta 最佳实践
   const timeoutSec = args['timeout'] ? Number(args['timeout']) : 600
 
   try {
-    await runOnce({ promptFile, out, model, temperature, timeoutSec })
+    await runOnce({ promptFile: promptFile || undefined, out, model: model || undefined, temperature, timeoutSec })
     console.log(`✅ AI response saved: ${out}`)
-  } catch (err) {
-    console.error(`❌ AI generate failed: ${err.message}`)
+  } catch (err: unknown) {
+    const error = err as Error
+    console.error(`❌ AI generate failed: ${error?.message || String(err)}`)
     process.exit(1)
   }
 }
