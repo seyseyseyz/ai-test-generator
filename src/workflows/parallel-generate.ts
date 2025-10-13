@@ -245,15 +245,19 @@ async function generateBatch(batch: TodoFunction[], batchIndex: number, options:
   
   try {
     // 1. 生成 Prompt（只包含这个批次的函数）
+    const reportArg = reportPath || 'reports/ut_scores.md'
     const promptArgs = [
       join(PKG_ROOT, 'lib/ai/prompt-builder.mjs'),
-      '--report', reportPath,
+      '--report', reportArg,
       '--only-todo'
     ]
     
     // 写入批次函数列表
     const batchListPath = join(batchDir, 'functions.txt')
     writeFileSync(batchListPath, batch.map(f => f.name).join('\n'), 'utf-8')
+    const reportArg = reportPath || 'reports/ut_scores.md'
+    promptArgs[1] = '--report'
+    promptArgs[2] = reportArg
     promptArgs.push('--function-list', batchListPath)
     
     let promptText: string | null = null
