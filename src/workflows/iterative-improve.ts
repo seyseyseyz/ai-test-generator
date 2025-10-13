@@ -205,7 +205,7 @@ async function collectFeedback(quality, iteration) {
 /**
  * 迭代改进主循环（Meta TestGen-LLM 风格）
  */
-export async function iterativeImprove(options) {
+export async function iterativeImprove(options: any): Promise<void> {
   const {
     targetFunctions,
     reportPath = 'reports/ut_scores.md',

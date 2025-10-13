@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 /**
  * 单批次：生成 prompt → 调用 AI → 提取测试 → 运行 Jest → 自动标记状态
  */

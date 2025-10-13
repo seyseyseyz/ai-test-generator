@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 /**
  * 并行测试生成（Phase 2 - v2.4.0）
  * 
