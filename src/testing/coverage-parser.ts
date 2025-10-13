@@ -78,7 +78,7 @@ export async function parseCoberturaXml(xmlPath: string): Promise<CoverageData> 
   const xml = readFileSync(xmlPath, 'utf-8')
   
   // 动态导入 xml2js（避免必须依赖）
-  let parseStringPromise: (xml: string) => Promise<any>
+  let parseStringPromise: (xml: string) => Promise<unknown>
   try {
     // @ts-ignore - xml2js may not have types
     const xml2js = await import('xml2js')
@@ -87,7 +87,7 @@ export async function parseCoberturaXml(xmlPath: string): Promise<CoverageData> 
     throw new Error('xml2js not installed. Run: npm install xml2js')
   }
   
-  const result = await parseStringPromise(xml)
+  const result = await parseStringPromise(xml) as Record<string, any>
   
   const coverage: CoverageData = {
     format: 'cobertura',

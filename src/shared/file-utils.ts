@@ -35,7 +35,7 @@ export function stripJsonComments(content: string): string {
  * const config = loadJson<MyConfig>('config.jsonc', {})
  * ```
  */
-export function loadJson<T = any>(filePath: string, defaultValue: T | null = null): T | null {
+export function loadJson<T = unknown>(filePath: string, defaultValue: T | null = null): T | null {
   if (!filePath || !existsSync(filePath)) return defaultValue
   
   try {
@@ -54,7 +54,7 @@ export function loadJson<T = any>(filePath: string, defaultValue: T | null = nul
  * @param data - Data to save
  * @param pretty - Pretty print (default: true)
  */
-export function saveJson(filePath: string, data: any, pretty: boolean = true): void {
+export function saveJson(filePath: string, data: unknown, pretty: boolean = true): void {
   const json = pretty ? JSON.stringify(data, null, 2) : JSON.stringify(data)
   writeFileSync(filePath, json, 'utf8')
 }

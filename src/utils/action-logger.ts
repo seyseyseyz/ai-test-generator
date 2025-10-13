@@ -50,7 +50,7 @@ export type ActionType = typeof ActionTypes[keyof typeof ActionTypes]
 export interface ActionInput {
   type: ActionType | string
   description: string
-  details?: Record<string, any>
+  details?: Record<string, unknown>
   dryRun?: boolean
 }
 
@@ -61,7 +61,7 @@ export interface ActionLogEntry {
   timestamp: string
   type: ActionType | string
   description: string
-  details: Record<string, any>
+  details: Record<string, unknown>
   dryRun: boolean
 }
 

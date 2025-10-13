@@ -58,7 +58,7 @@ export function tryRunCommand(command: string): string | null {
  * const files = await fg(['src/*.ts'])
  * ```
  */
-export async function requirePackage<T = any>(
+export async function requirePackage<T = unknown>(
   packageName: string,
   installHint?: string
 ): Promise<T> {
@@ -76,7 +76,7 @@ export async function requirePackage<T = any>(
  * @param packageName - NPM package name
  * @returns Imported module or null
  */
-export async function tryRequirePackage<T = any>(packageName: string): Promise<T | null> {
+export async function tryRequirePackage<T = unknown>(packageName: string): Promise<T | null> {
   try {
     return await import(packageName) as T
   } catch {
