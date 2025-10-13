@@ -502,6 +502,10 @@ export * from './coverage.js'
 export * from './quality.js'
 export * from './parallel.js'
 
+// Re-export from additional modules
+export * from './project-context.js'
+export * from './ai-suggestions.js'
+
 // ============================================================================
 // Export all types
 // ============================================================================

@@ -65,11 +65,11 @@ function getCategoryName(category: CategoryKey): string {
 function formatSuggestion(item: SuggestionItem, index: number, category: CategoryKey): string {
   let scoreInfo = ''
   
-  if (category === 'businessCriticalPaths') {
+  if (category === 'businessCriticalPaths' && 'suggestedBC' in item) {
     scoreInfo = `BC=${item.suggestedBC}`
-  } else if (category === 'highRiskModules') {
+  } else if (category === 'highRiskModules' && 'suggestedER' in item) {
     scoreInfo = `ER=${item.suggestedER}`
-  } else if (category === 'testabilityAdjustments') {
+  } else if (category === 'testabilityAdjustments' && 'adjustment' in item) {
     scoreInfo = `Adj=${item.adjustment}`
   }
   
@@ -219,7 +219,9 @@ export async function interactiveReview(validated: AISuggestions): Promise<AISug
       indexMapping.forEach(({ globalIndex, category, localIndex }) => {
         if (selectedIndices.has(globalIndex)) {
           const item = validated[category][localIndex]
-          result[category].push(item)
+          if (item) {
+            (result[category] as any[]).push(item)
+          }
         }
       })
       

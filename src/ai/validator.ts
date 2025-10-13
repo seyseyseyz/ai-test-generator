@@ -3,7 +3,7 @@
  * AI 响应验证器
  */
 
-import type { AISuggestions, SuggestionSchema, Validator } from '../types/ai-suggestions.js'
+import type { AISuggestions, SuggestionSchema } from '../types/ai-suggestions.js'
 
 const SCHEMA: Record<string, SuggestionSchema> = {
   businessCriticalPaths: {
@@ -88,15 +88,17 @@ export function validateAndSanitize(parsed: { suggestions?: any }): AISuggestion
   const suggestions = parsed.suggestions
   
   for (const [key, items] of Object.entries(suggestions)) {
-    const schema = (SCHEMA as any)[key]
-    if (!schema || !Array.isArray(items)) continue
-    
-    const validated = items
-      .filter(item => validateSuggestion(item, schema))
-      .sort((a: any, b: any) => b.confidence - a.confidence)
-      .slice(0, schema.maxCount)
-    
-    result[key] = validated
+    if (key === 'businessCriticalPaths' || key === 'highRiskModules' || key === 'testabilityAdjustments') {
+      const schema = SCHEMA[key]
+      if (!schema || !Array.isArray(items)) continue
+      
+      const validated = items
+        .filter(item => validateSuggestion(item, schema))
+        .sort((a: any, b: any) => b.confidence - a.confidence)
+        .slice(0, schema.maxCount)
+      
+      result[key] = validated as any
+    }
   }
   
   return result

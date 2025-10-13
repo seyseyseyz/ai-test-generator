@@ -3,10 +3,23 @@
  * AI 分析 Prompt 构建器
  */
 
+export interface FileSample {
+  path: string
+  layer: string
+  reason: string
+  preview: string
+}
+
+export interface ProjectStats {
+  totalFiles: number
+  totalLines: number
+  [key: string]: number
+}
+
 /**
  * 构建分析 Prompt
  */
-export function buildAnalysisPrompt(samples: any, stats: any, projectCtx: any) {
+export function buildAnalysisPrompt(samples: FileSample[], stats: ProjectStats, projectCtx: Record<string, any>): string {
   return `You are analyzing a ${projectCtx.framework} codebase to identify business-critical paths and high-risk modules.
 
 ## 📊 Project Overview
