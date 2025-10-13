@@ -9,14 +9,14 @@ import { existsSync, readFileSync } from 'node:fs'
  * 构建项目上下文信息
  */
 export async function buildProjectContext() {
-  const context = {
+  const context: any = {
     framework: 'Unknown',
-    platforms: [],
-    uiLibraries: [],
-    stateManagement: [],
-    criticalDeps: [],
-    devDeps: [],
-    testingTools: []
+    platforms: [] as string[],
+    uiLibraries: [] as string[],
+    stateManagement: [] as string[],
+    criticalDeps: [] as string[],
+    devDeps: [] as string[],
+    testingTools: [] as string[]
   }
   
   // 读取 package.json
@@ -68,10 +68,10 @@ export async function buildProjectContext() {
 /**
  * 检测项目框架和平台
  */
-function detectFramework(deps) {
-  const result = {
+function detectFramework(deps: any) {
+  const result: any = {
     framework: 'Unknown',
-    platforms: []
+    platforms: [] as string[]
   }
   
   // 检测 React Native
@@ -148,7 +148,7 @@ function detectFramework(deps) {
 /**
  * 检测 UI 库
  */
-function detectUILibraries(deps) {
+function detectUILibraries(deps: any) {
   const uiLibs = []
   
   if (deps['antd']) uiLibs.push('Ant Design')
@@ -169,7 +169,7 @@ function detectUILibraries(deps) {
 /**
  * 检测状态管理
  */
-function detectStateManagement(deps) {
+function detectStateManagement(deps: any) {
   const stateLibs = []
   
   if (deps['jotai']) stateLibs.push('Jotai')
@@ -189,7 +189,7 @@ function detectStateManagement(deps) {
 /**
  * 检测测试工具
  */
-function detectTestingTools(deps) {
+function detectTestingTools(deps: any) {
   const testTools = []
   
   if (deps['jest']) testTools.push('Jest')

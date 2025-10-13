@@ -72,7 +72,7 @@ function validateSuggestion(item: any, schema: any) {
  * 验证并清洗 AI 响应
  */
 export function validateAndSanitize(parsed: any) {
-  const result = {
+  const result: any = {
     businessCriticalPaths: [],
     highRiskModules: [],
     testabilityAdjustments: []
@@ -91,7 +91,7 @@ export function validateAndSanitize(parsed: any) {
     
     const validated = items
       .filter(item => validateSuggestion(item, schema))
-      .sort((a, b) => b.confidence - a.confidence)
+      .sort((a: any, b: any) => b.confidence - a.confidence)
       .slice(0, schema.maxCount)
     
     result[key] = validated

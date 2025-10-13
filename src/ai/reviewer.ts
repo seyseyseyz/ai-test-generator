@@ -19,7 +19,7 @@ function createInterface() {
 /**
  * 询问用户输入
  */
-function ask(rl, question) {
+function ask(rl: any, question: any) {
   return new Promise(resolve => rl.question(question, resolve))
 }
 
@@ -155,7 +155,7 @@ function displayFinalSummary(result, validated) {
  * @param {Object} validated - 已验证的建议
  * @returns {Object|null} - 用户批准的建议，或 null（取消）
  */
-export async function interactiveReview(validated) {
+export async function interactiveReview(validated: any) {
   const rl = createInterface()
   
   try {
