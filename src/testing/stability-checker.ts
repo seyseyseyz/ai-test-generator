@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 /**
  * Stability Checker - 测试稳定性检查器
  * 
@@ -14,13 +13,89 @@
 import { spawn } from 'node:child_process'
 import { writeFileSync, existsSync, readFileSync } from 'node:fs'
 
+// ============================================================================
+// Constants
+// ============================================================================
+
 const DEFAULT_RUNS = 3  // Qodo Cover 使用 5 次，我们用 3 次（平衡速度和准确性）
 const FLAKY_REPORT_PATH = 'reports/flaky_tests.json'
 
+// ============================================================================
+// Type Definitions
+// ============================================================================
+
+/** Test execution result */
+export interface TestResult {
+  passed: boolean
+  exitCode: number | null
+  duration: number
+  stdout: string
+  stderr: string
+  error?: string
+}
+
+/** Stability analysis result */
+export interface StabilityAnalysis {
+  passCount: number
+  failCount: number
+  passRate: number
+  avgDuration: number
+  maxDuration: number
+  minDuration: number
+  durationVariance: number
+  status: string
+  isStable: boolean
+  isFlaky: boolean
+  isUnstable: boolean
+}
+
+/** Stability check result */
+export interface StabilityCheckResult {
+  testFile: string
+  runs: number
+  results: TestResult[]
+  analysis: StabilityAnalysis
+}
+
+/** Flaky test information */
+export interface FlakyTestInfo {
+  file: string
+  passRate: number
+  passCount: number
+  failCount: number
+  avgDuration: number
+  detectedCount?: number
+  firstDetected?: string
+  lastDetected?: string
+}
+
+/** Flaky tests report */
+export interface FlakyReport {
+  tests: FlakyTestInfo[]
+  lastUpdated: string | null
+  totalFlakyTests?: number
+}
+
+/** Stability summary for multiple tests */
+export interface StabilitySummary {
+  totalTests: number
+  stable: number
+  flaky: number
+  unstable: number
+  timestamp: string
+  results: StabilityCheckResult[]
+}
+
+// ============================================================================
+// Core Functions
+// ============================================================================
+
 /**
  * 运行单个测试文件
+ * @param testFile - 测试文件路径
+ * @returns 测试执行结果
  */
-function runTest(testFile) {
+function runTest(testFile: string): Promise<TestResult> {
   return new Promise((resolve) => {
     const startTime = Date.now()
     const child = spawn('npx', ['jest', testFile, '--silent'], {
@@ -31,15 +106,15 @@ function runTest(testFile) {
     let stdout = ''
     let stderr = ''
     
-    child.stdout.on('data', (data) => {
+    child.stdout.on('data', (data: Buffer) => {
       stdout += data.toString()
     })
     
-    child.stderr.on('data', (data) => {
+    child.stderr.on('data', (data: Buffer) => {
       stderr += data.toString()
     })
     
-    child.on('close', (code) => {
+    child.on('close', (code: number | null) => {
       const endTime = Date.now()
       resolve({
         passed: code === 0,
@@ -50,7 +125,7 @@ function runTest(testFile) {
       })
     })
     
-    child.on('error', (error) => {
+    child.on('error', (error: Error) => {
       resolve({
         passed: false,
         exitCode: -1,
@@ -65,12 +140,15 @@ function runTest(testFile) {
 
 /**
  * 检查测试稳定性
+ * @param testFile - 测试文件路径
+ * @param runs - 运行次数
+ * @returns 稳定性检查结果
  */
-export async function checkStability(testFile, runs = DEFAULT_RUNS) {
+export async function checkStability(testFile: string, runs: number = DEFAULT_RUNS): Promise<StabilityCheckResult> {
   console.log(`🔍 Checking stability for: ${testFile}`)
   console.log(`   Running ${runs} times...\n`)
   
-  const results = []
+  const results: TestResult[] = []
   
   for (let i = 0; i < runs; i++) {
     process.stdout.write(`   Run ${i + 1}/${runs}... `)
@@ -110,8 +188,10 @@ export async function checkStability(testFile, runs = DEFAULT_RUNS) {
 
 /**
  * 分析稳定性结果
+ * @param results - 测试结果数组
+ * @returns 稳定性分析结果
  */
-function analyzeStability(results) {
+function analyzeStability(results: TestResult[]): StabilityAnalysis {
   const passCount = results.filter(r => r.passed).length
   const failCount = results.length - passCount
   const passRate = (passCount / results.length) * 100
@@ -123,7 +203,10 @@ function analyzeStability(results) {
   const durationVariance = maxDuration - minDuration
   
   // 判断稳定性
-  let status, isFlaky, isStable, isUnstable
+  let status: string
+  let isFlaky: boolean
+  let isStable: boolean
+  let isUnstable: boolean
   
   if (passRate === 100) {
     status = 'STABLE ✅'
@@ -159,9 +242,12 @@ function analyzeStability(results) {
 
 /**
  * 批量检查多个测试文件
+ * @param testFiles - 测试文件路径数组
+ * @param runs - 每个测试运行次数
+ * @returns 汇总结果
  */
-export async function checkMultipleStability(testFiles, runs = DEFAULT_RUNS) {
-  const allResults = []
+export async function checkMultipleStability(testFiles: string[], runs: number = DEFAULT_RUNS): Promise<StabilitySummary> {
+  const allResults: StabilityCheckResult[] = []
   
   for (const testFile of testFiles) {
     const result = await checkStability(testFile, runs)
@@ -170,7 +256,7 @@ export async function checkMultipleStability(testFiles, runs = DEFAULT_RUNS) {
   }
   
   // 生成汇总报告
-  const summary = {
+  const summary: StabilitySummary = {
     totalTests: allResults.length,
     stable: allResults.filter(r => r.analysis.isStable).length,
     flaky: allResults.filter(r => r.analysis.isFlaky).length,
@@ -187,7 +273,7 @@ export async function checkMultipleStability(testFiles, runs = DEFAULT_RUNS) {
   
   // 保存 flaky tests
   if (summary.flaky > 0) {
-    const flakyTests = allResults
+    const flakyTests: FlakyTestInfo[] = allResults
       .filter(r => r.analysis.isFlaky)
       .map(r => ({
         file: r.testFile,
@@ -206,9 +292,10 @@ export async function checkMultipleStability(testFiles, runs = DEFAULT_RUNS) {
 
 /**
  * 保存 flaky tests 报告
+ * @param flakyTests - Flaky 测试信息数组
  */
-function saveFlakyReport(flakyTests) {
-  let existingReport = { tests: [], lastUpdated: null }
+function saveFlakyReport(flakyTests: FlakyTestInfo[]): void {
+  let existingReport: FlakyReport = { tests: [], lastUpdated: null }
   
   if (existsSync(FLAKY_REPORT_PATH)) {
     try {
@@ -219,15 +306,16 @@ function saveFlakyReport(flakyTests) {
   }
   
   // 合并新的 flaky tests
-  const merged = [...existingReport.tests]
+  const merged: FlakyTestInfo[] = [...existingReport.tests]
   
   flakyTests.forEach(newTest => {
     const existingIndex = merged.findIndex(t => t.file === newTest.file)
     if (existingIndex >= 0) {
+      const existing = merged[existingIndex]!
       merged[existingIndex] = {
-        ...merged[existingIndex],
+        ...existing,
         ...newTest,
-        detectedCount: (merged[existingIndex].detectedCount || 1) + 1,
+        detectedCount: (existing.detectedCount || 1) + 1,
         lastDetected: new Date().toISOString()
       }
     } else {
@@ -240,7 +328,7 @@ function saveFlakyReport(flakyTests) {
     }
   })
   
-  const report = {
+  const report: FlakyReport = {
     tests: merged,
     lastUpdated: new Date().toISOString(),
     totalFlakyTests: merged.length
@@ -251,14 +339,15 @@ function saveFlakyReport(flakyTests) {
 
 /**
  * 读取 flaky tests 报告
+ * @returns Flaky 测试信息数组
  */
-export function getFlakyTests() {
+export function getFlakyTests(): FlakyTestInfo[] {
   if (!existsSync(FLAKY_REPORT_PATH)) {
     return []
   }
   
   try {
-    const report = JSON.parse(readFileSync(FLAKY_REPORT_PATH, 'utf-8'))
+    const report: FlakyReport = JSON.parse(readFileSync(FLAKY_REPORT_PATH, 'utf-8'))
     return report.tests || []
   } catch {
     return []
@@ -267,16 +356,23 @@ export function getFlakyTests() {
 
 /**
  * 检查文件是否在 flaky 列表中
+ * @param testFile - 测试文件路径
+ * @returns 是否为 flaky test
  */
-export function isFlaky(testFile) {
+export function isFlaky(testFile: string): boolean {
   const flakyTests = getFlakyTests()
   return flakyTests.some(t => t.file === testFile)
 }
 
+// ============================================================================
+// CLI Entry Point
+// ============================================================================
+
 /**
  * CLI 工具
+ * @param argv - 命令行参数
  */
-async function main(argv = process.argv) {
+async function main(argv: string[] = process.argv): Promise<void> {
   const args = argv.slice(2)
   
   if (args.length === 0) {
@@ -314,7 +410,7 @@ Examples:
   
   // 解析参数
   const runsIndex = args.indexOf('--runs')
-  const runs = runsIndex >= 0 ? parseInt(args[runsIndex + 1]) || DEFAULT_RUNS : DEFAULT_RUNS
+  const runs = runsIndex >= 0 ? parseInt(args[runsIndex + 1] || String(DEFAULT_RUNS)) || DEFAULT_RUNS : DEFAULT_RUNS
   const testFiles = args.filter(arg => !arg.startsWith('--') && arg !== String(runs))
   
   if (testFiles.length === 0) {
@@ -333,4 +429,3 @@ Examples:
 if (import.meta.url === `file://${process.argv[1]}`) {
   main()
 }
-

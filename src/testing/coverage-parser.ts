@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * 覆盖率解析器（Keploy 风格）
  * 
@@ -15,12 +14,63 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
+// ============================================================================
+// Local Type Definitions
+// ============================================================================
+
+/** Uncovered line information */
+export interface UncoveredLine {
+  file: string
+  lineNumber: number
+  hits: number
+  isBranch?: boolean
+}
+
+/** Internal file coverage details with additional fields */
+interface InternalFileCoverage {
+  totalLines: number
+  coveredLines: number
+  uncoveredLines: number[]
+  coverage: number
+  branchPoints?: number
+  coveredBranches?: number
+  branchCoverage?: number
+  statements?: Record<string, number>
+  branches?: Record<string, number[]>
+  functions?: Record<string, number>
+}
+
+/** Coverage data (generic) */
+export interface CoverageData {
+  format: string
+  lineRate: number
+  branchRate?: number
+  linesCovered: number
+  linesValid: number
+  uncoveredLines: UncoveredLine[]
+  filesCoverage: Record<string, InternalFileCoverage>
+  error?: string
+}
+
+/** Coverage comparison result */
+export interface CoverageDiff {
+  lineRateDiff: number
+  linesCoveredDiff: number
+  uncoveredLinesReduced: number
+  newlyCovered: UncoveredLine[]
+  stillUncovered: UncoveredLine[]
+}
+
+// ============================================================================
+// Cobertura XML Parser
+// ============================================================================
+
 /**
  * 解析 Cobertura XML 覆盖率报告
- * @param {string} xmlPath - coverage.xml 文件路径
- * @returns {Promise<Object>} 覆盖率数据
+ * @param xmlPath - coverage.xml 文件路径
+ * @returns 覆盖率数据
  */
-export async function parseCoberturaXml(xmlPath) {
+export async function parseCoberturaXml(xmlPath: string): Promise<CoverageData> {
   if (!existsSync(xmlPath)) {
     throw new Error(`Cobertura XML not found: ${xmlPath}`)
   }
@@ -28,8 +78,9 @@ export async function parseCoberturaXml(xmlPath) {
   const xml = readFileSync(xmlPath, 'utf-8')
   
   // 动态导入 xml2js（避免必须依赖）
-  let parseStringPromise
+  let parseStringPromise: (xml: string) => Promise<any>
   try {
+    // @ts-ignore - xml2js may not have types
     const xml2js = await import('xml2js')
     parseStringPromise = xml2js.parseStringPromise
   } catch (error) {
@@ -38,14 +89,14 @@ export async function parseCoberturaXml(xmlPath) {
   
   const result = await parseStringPromise(xml)
   
-  const coverage = {
-    format: 'cobertura' as const,
-    lineRate: parseFloat(result.coverage.$['line-rate']),
-    branchRate: parseFloat(result.coverage.$['branch-rate']),
-    linesCovered: parseInt(result.coverage.$['lines-covered']),
-    linesValid: parseInt(result.coverage.$['lines-valid']),
-    uncoveredLines: [] as any[],
-    filesCoverage: {} as Record<string, any>
+  const coverage: CoverageData = {
+    format: 'cobertura',
+    lineRate: parseFloat(result.coverage.$['line-rate'] || '0'),
+    branchRate: parseFloat(result.coverage.$['branch-rate'] || '0'),
+    linesCovered: parseInt(result.coverage.$['lines-covered'] || '0'),
+    linesValid: parseInt(result.coverage.$['lines-valid'] || '0'),
+    uncoveredLines: [],
+    filesCoverage: {}
   }
   
   // 解析每个包（package）
@@ -55,26 +106,27 @@ export async function parseCoberturaXml(xmlPath) {
     const classes = pkg.classes?.[0]?.class || []
     
     for (const cls of classes) {
-      const filename = cls.$.filename
+      const filename: string = cls.$.filename
       const lines = cls.lines?.[0]?.line || []
       
-      const fileCoverage = {
+      const fileCoverage: InternalFileCoverage = {
         totalLines: lines.length,
         coveredLines: 0,
         uncoveredLines: [],
         branchPoints: 0,
-        coveredBranches: 0
+        coveredBranches: 0,
+        coverage: 0
       }
       
       for (const line of lines) {
-        const lineNumber = parseInt(line.$.number)
-        const hits = parseInt(line.$.hits)
+        const lineNumber = parseInt(line.$.number || '0')
+        const hits = parseInt(line.$.hits || '0')
         const isBranch = line.$.branch === 'true'
         
-        if (isBranch) {
+        if (isBranch && fileCoverage.branchPoints !== undefined) {
           fileCoverage.branchPoints++
           const branchRate = line.$['condition-coverage']
-          if (branchRate && branchRate.includes('100%')) {
+          if (branchRate && branchRate.includes('100%') && fileCoverage.coveredBranches !== undefined) {
             fileCoverage.coveredBranches++
           }
         }
@@ -97,8 +149,8 @@ export async function parseCoberturaXml(xmlPath) {
         ? fileCoverage.coveredLines / fileCoverage.totalLines 
         : 0
       
-      fileCoverage.branchCoverage = fileCoverage.branchPoints > 0
-        ? fileCoverage.coveredBranches / fileCoverage.branchPoints
+      fileCoverage.branchCoverage = (fileCoverage.branchPoints || 0) > 0
+        ? (fileCoverage.coveredBranches || 0) / (fileCoverage.branchPoints || 1)
         : 1
       
       coverage.filesCoverage[filename] = fileCoverage
@@ -108,20 +160,27 @@ export async function parseCoberturaXml(xmlPath) {
   return coverage
 }
 
+// ============================================================================
+// Jest JSON Parser
+// ============================================================================
+
 /**
  * 解析 Jest 的 coverage-final.json（后备方案）
- * @param {string} jsonPath - coverage-final.json 文件路径
- * @returns {Object} 覆盖率数据
+ * @param jsonPath - coverage-final.json 文件路径
+ * @returns 覆盖率数据
  */
-export function parseJestCoverageJson(jsonPath) {
+export function parseJestCoverageJson(jsonPath: string): CoverageData {
   if (!existsSync(jsonPath)) {
     throw new Error(`Coverage JSON not found: ${jsonPath}`)
   }
   
-  const coverageData = JSON.parse(readFileSync(jsonPath, 'utf-8'))
+  const coverageData: Record<string, any> = JSON.parse(readFileSync(jsonPath, 'utf-8'))
   
-  const coverage = {
+  const coverage: CoverageData = {
     format: 'jest-json',
+    lineRate: 0,
+    linesCovered: 0,
+    linesValid: 0,
     uncoveredLines: [],
     filesCoverage: {}
   }
@@ -130,10 +189,10 @@ export function parseJestCoverageJson(jsonPath) {
   let coveredLines = 0
   
   for (const [filePath, fileData] of Object.entries(coverageData)) {
-    const statementMap = fileData.statementMap
-    const s = fileData.s  // statement execution counts
+    const statementMap = fileData.statementMap || {}
+    const s = fileData.s || {}  // statement execution counts
     
-    const uncoveredLines = []
+    const uncoveredLines: number[] = []
     let fileTotal = 0
     let fileCovered = 0
     
@@ -142,7 +201,7 @@ export function parseJestCoverageJson(jsonPath) {
       
       if (count === 0) {
         const stmt = statementMap[stmtId]
-        const lineNumber = stmt.start.line
+        const lineNumber = stmt?.start?.line || 0
         
         uncoveredLines.push(lineNumber)
         coverage.uncoveredLines.push({
@@ -163,9 +222,9 @@ export function parseJestCoverageJson(jsonPath) {
       coveredLines: fileCovered,
       uncoveredLines: [...new Set(uncoveredLines)].sort((a, b) => a - b),
       coverage: fileTotal > 0 ? fileCovered / fileTotal : 0,
-      statements: fileData.s,
-      branches: fileData.b,
-      functions: fileData.f,
+      statements: fileData.s || {},
+      branches: fileData.b || {},
+      functions: fileData.f || {},
       branchCoverage: fileData.b ? calculateBranchCoverage(fileData.b) : 0
     }
   }
@@ -179,8 +238,10 @@ export function parseJestCoverageJson(jsonPath) {
 
 /**
  * 计算分支覆盖率
+ * @param branches - 分支覆盖数据
+ * @returns 分支覆盖率（0-1）
  */
-function calculateBranchCoverage(branches) {
+function calculateBranchCoverage(branches: Record<string, number[]>): number {
   let total = 0
   let covered = 0
   
@@ -194,12 +255,16 @@ function calculateBranchCoverage(branches) {
   return total > 0 ? covered / total : 0
 }
 
+// ============================================================================
+// High-Level Functions
+// ============================================================================
+
 /**
  * 查找未覆盖行（自动选择最佳格式）
- * @param {string} coverageDir - 覆盖率目录（默认: coverage）
- * @returns {Promise<Object>} 覆盖率数据
+ * @param coverageDir - 覆盖率目录（默认: coverage）
+ * @returns 覆盖率数据
  */
-export async function findUncoveredLines(coverageDir = 'coverage') {
+export async function findUncoveredLines(coverageDir: string = 'coverage'): Promise<CoverageData> {
   const coberturaPath = join(coverageDir, 'cobertura-coverage.xml')
   const jestJsonPath = join(coverageDir, 'coverage-final.json')
   
@@ -218,46 +283,53 @@ export async function findUncoveredLines(coverageDir = 'coverage') {
     
     throw new Error('No coverage data found. Expected: cobertura-coverage.xml or coverage-final.json')
   } catch (error) {
-    console.error('❌ Coverage parsing failed:', error.message)
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('❌ Coverage parsing failed:', message)
     return {
       format: 'none',
       lineRate: 0,
+      linesCovered: 0,
+      linesValid: 0,
       uncoveredLines: [],
       filesCoverage: {},
-      error: error.message
+      error: message
     }
   }
 }
 
 /**
  * 获取特定文件的未覆盖行
- * @param {string} filePath - 文件路径
- * @param {string} coverageDir - 覆盖率目录
- * @returns {Promise<Array<number>>} 未覆盖行号列表
+ * @param filePath - 文件路径
+ * @param coverageDir - 覆盖率目录
+ * @returns 未覆盖行号列表
  */
-export async function getUncoveredLinesForFile(filePath, coverageDir = 'coverage') {
+export async function getUncoveredLinesForFile(filePath: string, coverageDir: string = 'coverage'): Promise<number[]> {
   const coverage = await findUncoveredLines(coverageDir)
   
   if (coverage.filesCoverage[filePath]) {
-    return coverage.filesCoverage[filePath].uncoveredLines
+    return coverage.filesCoverage[filePath]?.uncoveredLines || []
   }
   
   // 尝试匹配文件路径（可能有路径差异）
   for (const [path, data] of Object.entries(coverage.filesCoverage)) {
     if (path.endsWith(filePath) || filePath.endsWith(path)) {
-      return data.uncoveredLines
+      return data.uncoveredLines || []
     }
   }
   
   return []
 }
 
+// ============================================================================
+// Reporting Functions
+// ============================================================================
+
 /**
  * 生成覆盖率报告摘要
- * @param {Object} coverage - 覆盖率数据
- * @returns {string} 报告文本
+ * @param coverage - 覆盖率数据
+ * @returns 报告文本
  */
-export function generateCoverageSummary(coverage) {
+export function generateCoverageSummary(coverage: CoverageData): string {
   if (!coverage || coverage.error) {
     return `❌ No coverage data available${coverage.error ? ': ' + coverage.error : ''}`
   }
@@ -289,9 +361,10 @@ export function generateCoverageSummary(coverage) {
     if (sortedFiles.length > 0) {
       summary += `\n  Lowest Coverage Files:\n`
       for (const [file, data] of sortedFiles) {
-        const fileName = file.split('/').pop()
+        const fileName = file.split('/').pop() || file
         const percent = (data.coverage * 100).toFixed(1)
-        summary += `    - ${fileName}: ${percent}% (${data.uncoveredLines.length} uncovered lines)\n`
+        const uncoveredCount = data.uncoveredLines?.length || 0
+        summary += `    - ${fileName}: ${percent}% (${uncoveredCount} uncovered lines)\n`
       }
     }
   }
@@ -301,11 +374,11 @@ export function generateCoverageSummary(coverage) {
 
 /**
  * 生成未覆盖行的详细报告（用于 Prompt）
- * @param {Object} coverage - 覆盖率数据
- * @param {number} maxLines - 最大显示行数
- * @returns {string} 详细报告
+ * @param coverage - 覆盖率数据
+ * @param _maxLines - 最大显示行数（保留用于未来扩展）
+ * @returns 详细报告
  */
-export function generateUncoveredLinesReport(coverage, maxLines = 20) {
+export function generateUncoveredLinesReport(coverage: CoverageData, _maxLines: number = 20): string {
   if (!coverage || coverage.uncoveredLines.length === 0) {
     return '✅ All lines are covered!'
   }
@@ -314,15 +387,15 @@ export function generateUncoveredLinesReport(coverage, maxLines = 20) {
   report += `Focus on covering these lines to increase coverage:\n\n`
   
   // 按文件分组
-  const byFile = {}
+  const byFile: Record<string, UncoveredLine[]> = {}
   for (const line of coverage.uncoveredLines) {
     if (!byFile[line.file]) byFile[line.file] = []
-    byFile[line.file].push(line)
+    byFile[line.file]!.push(line)
   }
   
   let count = 0
   for (const [file, lines] of Object.entries(byFile)) {
-    const fileName = file.split('/').pop()
+    const fileName = file.split('/').pop() || file
     report += `### ${fileName}\n`
     report += `Uncovered lines: ${lines.map(l => l.lineNumber).sort((a, b) => a - b).join(', ')}\n`
     
@@ -358,12 +431,12 @@ export function generateUncoveredLinesReport(coverage, maxLines = 20) {
 
 /**
  * 比较两次覆盖率的变化
- * @param {Object} before - 之前的覆盖率
- * @param {Object} after - 之后的覆盖率
- * @returns {Object} 变化数据
+ * @param before - 之前的覆盖率
+ * @param after - 之后的覆盖率
+ * @returns 变化数据
  */
-export function compareCoverage(before, after) {
-  const diff = {
+export function compareCoverage(before: CoverageData, after: CoverageData): CoverageDiff {
+  const diff: CoverageDiff = {
     lineRateDiff: after.lineRate - before.lineRate,
     linesCoveredDiff: after.linesCovered - before.linesCovered,
     uncoveredLinesReduced: before.uncoveredLines.length - after.uncoveredLines.length,
@@ -372,7 +445,6 @@ export function compareCoverage(before, after) {
   }
   
   // 找出新覆盖的行
-  const beforeSet = new Set(before.uncoveredLines.map(l => `${l.file}:${l.lineNumber}`))
   const afterSet = new Set(after.uncoveredLines.map(l => `${l.file}:${l.lineNumber}`))
   
   for (const line of before.uncoveredLines) {
@@ -389,14 +461,13 @@ export function compareCoverage(before, after) {
 
 /**
  * 检查覆盖率是否达标
- * @param {Object} coverage - 覆盖率数据
- * @param {number} threshold - 目标覆盖率（0-100）
- * @returns {boolean} 是否达标
+ * @param coverage - 覆盖率数据
+ * @param threshold - 目标覆盖率（0-100）
+ * @returns 是否达标
  */
-export function isCoverageMetThreshold(coverage, threshold = 80) {
+export function isCoverageMetThreshold(coverage: CoverageData, threshold: number = 80): boolean {
   if (!coverage || coverage.error) return false
   
   const percent = coverage.lineRate * 100
   return percent >= threshold
 }
-
