@@ -86,8 +86,8 @@ function getLoc(text: string, start: number, end: number): number {
  * Extract testable targets from source files
  */
 async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
-  const { Project: TsMorphProject, SyntaxKind: TsSyntaxKind, SourceFile: TsSourceFile, FunctionDeclaration: TsFunctionDeclaration, VariableDeclaration: TsVariableDeclaration } = await requirePackage('ts-morph', 'ts-morph')
-  const cfg = loadJson('ut_scoring_config.json') || {}
+  const { Project: TsMorphProject, SyntaxKind: TsSyntaxKind, SourceFile: TsSourceFile, FunctionDeclaration: TsFunctionDeclaration, VariableDeclaration: TsVariableDeclaration } = await requirePackage<typeof import('ts-morph')>('ts-morph', 'ts-morph')
+  const cfg = loadJson<AITestConfig>('ut_scoring_config.json') || {} as AITestConfig
   const internalInclude = cfg.internalInclude === true
   const minLoc = cfg?.internalThresholds?.minLoc ?? 15
 
