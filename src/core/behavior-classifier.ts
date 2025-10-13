@@ -478,7 +478,12 @@ it('should handle async errors', async () => {
 /**
  * 生成 Happy Path 示例测试
  */
-function generateHappyPathExample(functionName: string, params: any[]): string {
+interface FunctionParameter {
+  name: string
+  type: string
+}
+
+function generateHappyPathExample(functionName: string, params: FunctionParameter[]): string {
   const paramList = params.map(p => p.getName()).join(', ')
   const hasParams = params.length > 0
   
