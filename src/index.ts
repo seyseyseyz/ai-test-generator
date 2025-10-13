@@ -16,33 +16,12 @@
  * @packageDocumentation
  */
 
-// 导出类型定义（优先，避免冲突）
+// 导出类型定义
 export * from './types/index.js'
 
-// 导出核心模块函数（排除types，避免重复）
-export {
-  // scanner
-  scanCode,
-  // git-analyzer
-  analyzeGitHistory,
-  // boundary-detector
-  detectBoundaries,
-  formatBoundariesForPrompt,
-  // mock-analyzer
-  analyzeMockRequirements,
-  formatMocksForPrompt,
-  // behavior-classifier
-  classifyBehaviors,
-  formatBehaviorsForPrompt,
-  // scoring
-  scoreTargets,
-  calculateROI,
-  calculateBusinessCriticality,
-  calculateErrorRisk,
-  calculateTestability,
-  calculateCodeComplexity,
-  calculateCoverage
-} from './core/index.js'
+// 注意: core模块也会re-export一些types，可能导致冲突
+// 建议直接从子模块导入: import { scanCode } from 'ai-test-generator/core'
+// 或使用命名空间导入: import * as Core from 'ai-test-generator/core'
 
 // 导出其他模块（通过子路径导入）
 // import * from 'ai-test-generator/ai'
