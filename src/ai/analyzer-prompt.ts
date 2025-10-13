@@ -18,7 +18,7 @@ export function buildAnalysisPrompt(samples: any, stats: any, projectCtx: any) {
 
 ## 📂 Code Samples (${samples.length} files)
 
-${samples.map((s, i) => `
+${samples.map((s: any, i: number) => `
 ### Sample ${i + 1}: ${s.path}
 **Layer**: ${s.layer}
 **Reason**: ${s.reason}

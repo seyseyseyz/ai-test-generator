@@ -55,7 +55,7 @@ export async function sampleCodeFiles() {
   for (const keyword of keywords) {
     const matched = criticalFiles.filter(f => f.toLowerCase().includes(keyword))
     if (matched.length > 0) {
-      const file = matched[0] // 取第一个
+      const file = matched[0]! // 取第一个，使用断言确保非空
       if (!samples.find(s => s.path === file)) {
         samples.push({
           path: file,
