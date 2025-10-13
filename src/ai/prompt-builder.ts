@@ -1,31 +1,50 @@
 #!/usr/bin/env node
-// @ts-nocheck
 /**
  * 生成批量测试的 AI Prompt
  * 从评分报告中提取目标，构建包含源码上下文的 Prompt
  */
 
 import { readFileSync, existsSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { generateFewShotPrompt, selectBestExample } from '../../templates/test-examples.js';
+// @ts-ignore - template file may not have types
+import { generateFewShotPrompt } from '../../templates/test-examples.js';
 import { Project } from 'ts-morph';
 import { detectBoundaries, formatBoundariesForPrompt } from '../core/boundary-detector.js';
 import { analyzeMockRequirements, formatMocksForPrompt } from '../core/mock-analyzer.js';
 import { classifyBehaviors, formatBehaviorsForPrompt } from '../core/behavior-classifier.js';
 
+interface TargetFilter {
+  onlyTodo?: boolean
+  priority?: string
+  layer?: string
+  minScore?: number
+  onlyPaths?: string[]
+  functionNames?: string[]
+}
+
+interface TestTarget {
+  status: string
+  score: number
+  priority: string
+  name: string
+  type: string
+  layer: string
+  path: string
+}
+
+
 /**
  * 从 ut_scores.md 中解析测试目标
  */
-export function parseTargets(mdPath, filter = {}) {
+export function parseTargets(mdPath: string, filter: TargetFilter = {}): TestTarget[] {
   if (!existsSync(mdPath)) {
     throw new Error(`报告文件不存在: ${mdPath}`);
   }
   
   const content = readFileSync(mdPath, 'utf8');
   const lines = content.split('\n');
-  const targets = [];
+  const targets: TestTarget[] = [];
   
-  lines.forEach(line => {
+  lines.forEach((line: string) => {
     // 🆕 v2.4.0: 支持 --only-todo 过滤（只保留 TODO 状态）
     if (filter.onlyTodo && !line.includes('| TODO |')) return;
     
@@ -35,29 +54,30 @@ export function parseTargets(mdPath, filter = {}) {
     const parts = line.split('|').map(s => s.trim());
     if (parts.length < 8) return;
     
-    const [, status, score, priority, name, type, layer, path] = parts;
+    const [, _status, score, priority, name, type, layer, path] = parts;
     
     // 应用过滤器
     if (filter.priority && priority !== filter.priority) return;
-    if (filter.layer && !layer.includes(filter.layer)) return;
-    if (filter.minScore && parseFloat(score) < filter.minScore) return;
+    if (filter.layer && layer && !layer.includes(filter.layer)) return;
+    if (filter.minScore && parseFloat(score || '0') < filter.minScore) return;
     if (filter.onlyPaths && Array.isArray(filter.onlyPaths) && filter.onlyPaths.length > 0) {
-      const allow = filter.onlyPaths.some(p => path === p || path.endsWith(p));
+      const allow = filter.onlyPaths.some(p => path === p || (path && path.endsWith(p)));
       if (!allow) return;
     }
     
     // 🆕 v2.4.0: 支持 --function-list 过滤（只包含指定函数名）
     if (filter.functionNames && Array.isArray(filter.functionNames) && filter.functionNames.length > 0) {
-      if (!filter.functionNames.includes(name)) return;
+      if (!filter.functionNames.includes(name || '')) return;
     }
     
     targets.push({ 
-      name, 
-      type, 
-      layer, 
-      path, 
-      priority, 
-      score: parseFloat(score) 
+      status: _status || '',
+      name: name || '',
+      type: type || '',
+      layer: layer || '',
+      path: path || '',
+      priority: priority || '',
+      score: parseFloat(score || '0')
     });
   });
   
@@ -72,7 +92,7 @@ export function parseTargets(mdPath, filter = {}) {
 /**
  * 提取函数源码
  */
-export function extractFunctionCode(filePath, functionName) {
+export function extractFunctionCode(filePath: string, functionName: string): string {
   if (!existsSync(filePath)) {
     return `// 文件不存在: ${filePath}`;
   }
@@ -125,14 +145,15 @@ export function extractFunctionCode(filePath, functionName) {
     
     return funcCode || content.slice(matchIndex, Math.min(matchIndex + 1000, content.length));
   } catch (err) {
-    return `// 读取失败: ${err.message}`;
+      const error = err as Error
+      return `// 读取失败: ${error?.message || String(err)}`;
   }
 }
 
 /**
  * 构建测试生成 Prompt
  */
-export function buildBatchPrompt(targets, options = {}) {
+export function buildBatchPrompt(targets: any, options: any = {}): string {
   const {
     framework = 'React + TypeScript',
     testFramework = 'Jest',
@@ -141,8 +162,8 @@ export function buildBatchPrompt(targets, options = {}) {
   } = options;
   
   // 预先计算测试文件清单（用于 JSON manifest 与展示）
-  const files = targets.map(t => {
-    const testPath = t.path.replace(/\.(ts|tsx|js|jsx)$/i, m => `.test${m}`)
+  const files = targets.map((t: any) => {
+    const testPath = t.path.replace(/\.(ts|tsx|js|jsx)$/i, (m: string) => `.test${m}`)
     return {
       path: testPath,
       source: t.path,
@@ -194,16 +215,16 @@ ${JSON.stringify({ version: 1, files }, null, 2)}
 `;
 
   // 🆕 v2.3.0: 使用 ts-morph 进行深度分析（边界检测 + Mock 分析）
-  let project;
+  let project: any = null;
   try {
     project = new Project({ skipAddingFilesFromTsConfig: true });
   } catch (error) {
     console.error('⚠️  Warning: ts-morph initialization failed, skipping advanced analysis');
   }
 
-  targets.forEach((target, index) => {
+  targets.forEach((target: any, index: number) => {
     const code = extractFunctionCode(target.path, target.name);
-    const testPath = target.path.replace(/\.(ts|tsx|js|jsx)$/i, m => `.test${m}`)
+    const testPath = target.path.replace(/\.(ts|tsx|js|jsx)$/i, (m: string) => `.test${m}`)
     
     // 🆕 v2.3.0: 边界检测 + Mock 分析（Keploy 风格）
     // 🆕 v2.4.0: Behavior 分类（Qodo Cover 风格）
@@ -215,7 +236,7 @@ ${JSON.stringify({ version: 1, files }, null, 2)}
       try {
         const sourceFile = project.addSourceFileAtPath(target.path)
         const functions = sourceFile.getFunctions()
-        const targetFunc = functions.find(f => f.getName() === target.name)
+        const targetFunc = functions.find((f: any) => f.getName() === target.name)
         
         if (targetFunc) {
           // 边界条件检测
@@ -292,10 +313,10 @@ ${boundariesText}${mocksText}${behaviorsText}
 /**
  * CLI 入口
  */
-export function runCLI(argv = process.argv) {
+export function runCLI(argv: string[] = process.argv): void {
   const args = argv.slice(2);
-  const filter = {};
-  const options = {};
+  const filter: any = {};
+  const options: any = {};
   
   // 解析参数
   for (let i = 0; i < args.length; i++) {
@@ -305,11 +326,11 @@ export function runCLI(argv = process.argv) {
     } else if (arg === '--layer' || arg === '-l') {
       filter.layer = args[++i];
     } else if (arg === '--limit' || arg === '-n') {
-      filter.limit = parseInt(args[++i]);
+      filter.limit = parseInt(args[++i] || '10');
     } else if (arg === '--skip') {
-      filter.skip = parseInt(args[++i]);
+      filter.skip = parseInt(args[++i] || '0');
     } else if (arg === '--min-score') {
-      filter.minScore = parseFloat(args[++i]);
+      filter.minScore = parseFloat(args[++i] || '0');
     } else if (arg === '--report') {
       options.reportPath = args[++i];
     } else if (arg === '--framework') {
@@ -328,8 +349,9 @@ export function runCLI(argv = process.argv) {
       try {
         const functionNames = readFileSync(listPath, 'utf8').split('\n').map(s => s.trim()).filter(Boolean);
         filter.functionNames = functionNames;
-      } catch (err) {
-        console.error(`⚠️  Failed to read function list: ${err.message}`);
+      } catch (err: unknown) {
+        const error = err as Error
+        console.error(`⚠️  Failed to read function list: ${error?.message || String(err)}`);
       }
     } else if (arg === '--only-todo') {
       // 🆕 v2.4.0: 只处理 TODO 状态的函数
