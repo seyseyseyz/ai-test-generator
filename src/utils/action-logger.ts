@@ -136,7 +136,7 @@ function updateSummary(logEntry: ActionLogEntry): void {
   if (existsSync(ACTIONS_SUMMARY_FILE)) {
     try {
       summary = JSON.parse(readFileSync(ACTIONS_SUMMARY_FILE, 'utf-8'))
-    } catch (error) {
+    } catch {
       // 忽略解析错误，使用默认值
     }
   }
@@ -173,7 +173,7 @@ export function getActionSummary(): ActionSummary | null {
   
   try {
     return JSON.parse(readFileSync(ACTIONS_SUMMARY_FILE, 'utf-8'))
-  } catch (error) {
+  } catch {
     return null
   }
 }
@@ -194,7 +194,7 @@ export function getRecentActions(count: number = 10): ActionLogEntry[] {
     const recentLines = lines.slice(-count)
     
     return recentLines.map(line => JSON.parse(line))
-  } catch (error) {
+  } catch {
     return []
   }
 }

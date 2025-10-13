@@ -57,7 +57,7 @@ export async function buildProjectContext(): Promise<ProjectContext> {
       )
       
       context.devDeps = Object.keys(pkg.devDependencies || {})
-    } catch (err) {
+    } catch {
       console.warn('Warning: Could not read package.json')
     }
   }

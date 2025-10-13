@@ -228,7 +228,7 @@ ${JSON.stringify({ version: 1, files }, null, 2)}
   let project: Project | null = null;
   try {
     project = new Project({ skipAddingFilesFromTsConfig: true });
-  } catch (error) {
+  } catch {
     console.error('⚠️  Warning: ts-morph initialization failed, skipping advanced analysis');
   }
 

@@ -75,7 +75,7 @@ function checkDirectoryRecursive(dir: string, compareTime: number): boolean {
         }
       }
     }
-  } catch (err) {
+  } catch (_err) {
     // 忽略权限错误等
     console.warn(`   Warning: Could not access ${dir}`)
   }

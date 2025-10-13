@@ -17,7 +17,7 @@
  * @module mock-analyzer
  */
 
-import { SyntaxKind, type ArrowFunction, type CallExpression, type FunctionDeclaration, type FunctionExpression, type SourceFile } from 'ts-morph'
+import { type ArrowFunction, SyntaxKind, type CallExpression, type FunctionDeclaration, type FunctionExpression, type SourceFile } from 'ts-morph'
 
 // ============================================================================
 // Type Definitions
@@ -78,7 +78,7 @@ export function analyzeMockRequirements(functionNode: FunctionNode): MockRequire
       if (mock) {
         mocks.push(mock)
       }
-    } catch (error) {
+    } catch {
       // Skip calls that can't be analyzed
       continue
     }

@@ -15,7 +15,7 @@
  * @module behavior-classifier
  */
 
-import { SyntaxKind, type ArrowFunction, type FunctionDeclaration, type FunctionExpression, type ParameterDeclaration } from 'ts-morph'
+import { type ArrowFunction, SyntaxKind, type FunctionDeclaration, type FunctionExpression, type ParameterDeclaration } from 'ts-morph'
 
 // ============================================================================
 // Type Definitions
@@ -463,7 +463,7 @@ it('should handle async errors', async () => {
       })
     }
     
-  } catch (error) {
+  } catch {
     // Skip if AST analysis fails
   }
   

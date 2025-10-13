@@ -98,7 +98,7 @@ export async function scan(options: ScanCommandOptions): Promise<void> {
       })
       console.log('✅ Coverage completed.\n')
     }
-  } catch (err) {
+  } catch (_err) {
     console.warn('⚠️  Coverage step failed. Continuing scan.')
   }
   

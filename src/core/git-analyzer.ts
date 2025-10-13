@@ -25,7 +25,7 @@ function assertGitRepo(): void {
   try {
     const inside = runCommand('git rev-parse --is-inside-work-tree')
     if (inside !== 'true') throw new Error('not a git work tree')
-  } catch (e) {
+  } catch {
     throw new Error('Not inside a git repository. Ensure git is initialized and files are tracked.')
   }
 }

@@ -229,7 +229,7 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
           }
         }).length
       }
-    } catch (err) {
+    } catch {
       // 提取失败不影响主流程
     }
     

@@ -134,7 +134,7 @@ function cleanupOldBackups(filePath: string): void {
     backups.slice(MAX_BACKUPS_PER_FILE).forEach(backup => {
       try {
         unlinkSync(backup.path)
-      } catch (error) {
+      } catch (_error) {
         console.warn(`Failed to delete old backup: ${backup.file}`)
       }
     })

@@ -10,7 +10,7 @@
  * @module boundary-detector
  */
 
-import { SyntaxKind, type ArrowFunction, type FunctionDeclaration, type FunctionExpression } from 'ts-morph'
+import { type ArrowFunction, SyntaxKind, type FunctionDeclaration, type FunctionExpression } from 'ts-morph'
 
 // ============================================================================
 // Type Definitions
@@ -254,7 +254,7 @@ function detectParameterBoundaries(functionNode: FunctionNode): ParameterBoundar
         })
       }
       
-    } catch (error) {
+    } catch {
       // Skip parameters that can't be analyzed
       continue
     }
@@ -290,7 +290,7 @@ function detectConditionBoundaries(functionNode: FunctionNode): ConditionBoundar
           priority: 1
         })
       }
-    } catch (error) {
+    } catch {
       continue
     }
   }

@@ -42,7 +42,7 @@ export function loadJson<T = unknown>(filePath: string, defaultValue: T | null =
     const content = readFileSync(filePath, 'utf8')
     const stripped = stripJsonComments(content)
     return JSON.parse(stripped) as T
-  } catch (error) {
+  } catch {
     return defaultValue
   }
 }

@@ -268,7 +268,7 @@ async function generateBatch(batch: TodoFunction[], batchIndex: number, options:
       } else {
         promptText = await sh('node', promptArgs, { captureStdout: true })
       }
-    } catch (err) {
+    } catch (_err) {
       promptText = await sh('node', promptArgs, { captureStdout: true })
     }
     

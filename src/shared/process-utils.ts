@@ -5,7 +5,7 @@
  * @packageDocumentation
  */
 
-import { type ChildProcess, type StdioOptions, execSync, spawn } from 'node:child_process'
+import { type ChildProcess, execSync, spawn, type StdioOptions } from 'node:child_process'
 
 /**
  * Execute shell command and return output
@@ -64,7 +64,7 @@ export async function requirePackage<T = unknown>(
 ): Promise<T> {
   try {
     return await import(packageName) as T
-  } catch (error) {
+  } catch (_error) {
     const hint = installHint || packageName
     throw new Error(`${packageName} not installed. Run: npm install ${hint}`)
   }

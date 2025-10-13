@@ -83,7 +83,7 @@ export async function parseCoberturaXml(xmlPath: string): Promise<CoverageData> 
     // @ts-expect-error - xml2js may not have types
     const xml2js = await import('xml2js')
     parseStringPromise = xml2js.parseStringPromise
-  } catch (error) {
+  } catch (_error) {
     throw new Error('xml2js not installed. Run: npm install xml2js')
   }
   
