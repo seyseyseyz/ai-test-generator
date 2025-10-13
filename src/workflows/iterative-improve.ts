@@ -403,6 +403,11 @@ export async function iterativeImprove(options: IterativeImproveOptions = {}): P
       console.log('\n📊 Final quality (best sample):')
     }
     
+    if (!quality) {
+      console.error('❌ Quality evaluation failed')
+      break
+    }
+    
     console.log(`   Build: ${quality.buildSuccess ? '✅' : '❌'} (${quality.telemetry.buildTimeMs}ms)`)
     console.log(`   Tests Pass: ${quality.testPass ? '✅' : '❌'} (${quality.telemetry.testTimeMs}ms)`)
     console.log(`   Coverage: ${quality.coverageIncrease.toFixed(2)}% ${quality.coverageIncrease >= QUALITY_STANDARDS.minCoverageIncrease ? '✅' : '❌'} (${quality.telemetry.coverageBefore.toFixed(2)}% → ${quality.telemetry.coverageAfter.toFixed(2)}%)`)
@@ -420,8 +425,8 @@ export async function iterativeImprove(options: IterativeImproveOptions = {}): P
     feedbackHistory.push(feedback)
     
     console.log(`\n💬 Feedback for next iteration:`)
-    feedback.issues.forEach(issue => console.log(`   ⚠️  ${issue}`))
-    feedback.suggestions.forEach(sug => console.log(`   💡 ${sug}`))
+    feedback.issues.forEach((issue: string) => console.log(`   ⚠️  ${issue}`))
+    feedback.suggestions.forEach((sug: string) => console.log(`   💡 ${sug}`))
     
     // 5. 检查是否达到最大迭代次数
     if (iteration >= maxIterations) {
@@ -471,7 +476,6 @@ export async function iterativeImprove(options: IterativeImproveOptions = {}): P
   console.log(`\n📄 Full report saved: reports/improvement_report.json`)
   console.log(`   Reference: Meta TestGen-LLM - https://arxiv.org/pdf/2402.09171`)
   
-  return report
 }
 
 /**
@@ -484,11 +488,12 @@ async function main(argv: string[] = process.argv): Promise<void> {
   
   try {
     await iterativeImprove({
-      reportPath,
+      reportPath: reportPath || 'reports/ut_scores.md',
       maxIterations
     })
-  } catch (err) {
-    console.error(`❌ Iterative improvement failed: ${err.message}`)
+  } catch (err: unknown) {
+    const error = err as Error
+    console.error(`❌ Iterative improvement failed: ${error?.message || String(err)}`)
     process.exit(1)
   }
 }
