@@ -1,6 +1,6 @@
 {
   "name": "ai-unit-test-generator",
-  "version": "2.4.0",
+  "version": "3.0.0",
   "description": "AI-powered unit test generator with smart priority scoring, parallel generation, behavior classification, boundary detection, and mock analysis",
   "keywords": [
     "unit-test",
