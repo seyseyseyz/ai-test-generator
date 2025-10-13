@@ -337,11 +337,11 @@ export async function iterativeImprove(options: IterativeImproveOptions = {}): P
           // 生成候选测试
           await sh('node', [
             join(PKG_ROOT, 'lib/workflows/batch.mjs'),
-            null, // priority
+            'null', // priority (as string for CLI arg)
             '10', // limit
             '0',  // skip
             reportPath
-          ])
+          ], {})
           
           // 立即评估此候选的质量
           const candidateQuality = await evaluateQuality(beforeCov, iteration)
