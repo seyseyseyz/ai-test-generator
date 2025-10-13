@@ -2,7 +2,7 @@
  * AI 响应验证器
  */
 
-import type { AISuggestions, SuggestionSchema, SuggestionItem } from '../types/ai-suggestions.js'
+import type { AISuggestions, SuggestionSchema, BusinessCriticalPath, HighRiskModule, TestabilityAdjustment } from '../types/ai-suggestions.js'
 
 type ValidatorValue = string | number | string[] | unknown
 
@@ -105,7 +105,14 @@ export function validateAndSanitize(parsed: { suggestions?: Record<string, unkno
         })
         .slice(0, schema.maxCount)
       
-      result[key] = validated as SuggestionItem[]
+      // Type assertion is safe because we validated the structure
+      if (key === 'businessCriticalPaths') {
+        result.businessCriticalPaths = validated as unknown as BusinessCriticalPath[]
+      } else if (key === 'highRiskModules') {
+        result.highRiskModules = validated as unknown as HighRiskModule[]
+      } else if (key === 'testabilityAdjustments') {
+        result.testabilityAdjustments = validated as unknown as TestabilityAdjustment[]
+      }
     }
   }
   

@@ -62,17 +62,11 @@ export interface SuggestionSchema {
   minConfidence: number
   maxCount: number
   requiredFields: string[]
-  validators: {
-    pattern: (value: string) => boolean
-    confidence: (value: number) => boolean
-    reason: (value: string) => boolean
-    evidence: (value: string[]) => boolean
-    [key: string]: (value: any) => boolean
-  }
+  validators: Record<string, (value: unknown) => boolean>
 }
 
 /**
  * Generic validator function type
  */
-export type Validator<T> = (value: T) => boolean
+export type Validator = (value: unknown) => boolean
 
