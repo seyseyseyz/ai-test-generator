@@ -126,7 +126,7 @@ function parseRelativeTime(rel: string): number {
  */
 function collectWithExec(files: string[], config: AITestConfig | null): Record<string, GitSignals> {
   const results: Record<string, GitSignals> = {}
-  const crossCats = (config as any)?.crossModuleCategories || []
+  const crossCats = config?.crossModuleCategories || []
   
   // P2-2: Batch collect all commits
   const batchData = collectCommitsBatch(files)

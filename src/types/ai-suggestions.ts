@@ -1,0 +1,78 @@
+/**
+ * AI Suggestions and Validation types
+ * @packageDocumentation
+ */
+
+/**
+ * Business critical path suggestion
+ */
+export interface BusinessCriticalPath {
+  pattern: string
+  confidence: number
+  reason: string
+  suggestedBC: number
+  evidence: string[]
+}
+
+/**
+ * High risk module suggestion
+ */
+export interface HighRiskModule {
+  pattern: string
+  confidence: number
+  reason: string
+  suggestedER: number
+  evidence: string[]
+}
+
+/**
+ * Testability adjustment suggestion
+ */
+export interface TestabilityAdjustment {
+  pattern: string
+  confidence: number
+  reason: string
+  adjustment: string
+  evidence: string[]
+}
+
+/**
+ * Complete AI suggestions structure
+ */
+export interface AISuggestions {
+  businessCriticalPaths: BusinessCriticalPath[]
+  highRiskModules: HighRiskModule[]
+  testabilityAdjustments: TestabilityAdjustment[]
+}
+
+/**
+ * Union type for all suggestion items
+ */
+export type SuggestionItem = BusinessCriticalPath | HighRiskModule | TestabilityAdjustment
+
+/**
+ * Category keys for suggestions
+ */
+export type CategoryKey = keyof AISuggestions
+
+/**
+ * AI response validation schema
+ */
+export interface SuggestionSchema {
+  minConfidence: number
+  maxCount: number
+  requiredFields: string[]
+  validators: {
+    pattern: (value: string) => boolean
+    confidence: (value: number) => boolean
+    reason: (value: string) => boolean
+    evidence: (value: string[]) => boolean
+    [key: string]: (value: any) => boolean
+  }
+}
+
+/**
+ * Generic validator function type
+ */
+export type Validator<T> = (value: T) => boolean
+

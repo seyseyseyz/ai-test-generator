@@ -321,6 +321,7 @@ export interface AITestConfig {
       thresholds: PriorityThresholds
     }>
   }
+  crossModuleCategories?: string[]
   aiConfig?: AIClientConfig
   testConfig: {
     framework: 'jest' | 'vitest'

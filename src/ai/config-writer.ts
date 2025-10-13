@@ -4,6 +4,7 @@
  */
 
 import { readConfig, writeConfig } from '../utils/config-manager.js'
+import type { AISuggestions, AITestConfig } from '../types/index.js'
 
 const LOCKED_PATHS = [
   'scoringMode',
@@ -26,7 +27,7 @@ const LOCKED_PATHS = [
 /**
  * 应用 AI 建议到配置文件
  */
-export async function applyAISuggestions(configPath: string, suggestions: any) {
+export async function applyAISuggestions(configPath: string, suggestions: AISuggestions): Promise<AITestConfig> {
   // 1. 读取现有配置
   const config = readConfig(configPath)
   
@@ -67,7 +68,7 @@ export async function applyAISuggestions(configPath: string, suggestions: any) {
 /**
  * 验证写入权限
  */
-function validateWritePermissions(suggestions: any) {
+function validateWritePermissions(suggestions: AISuggestions): void {
   const allowedKeys = ['businessCriticalPaths', 'highRiskModules', 'testabilityAdjustments']
   
   for (const key of Object.keys(suggestions)) {
@@ -80,7 +81,7 @@ function validateWritePermissions(suggestions: any) {
 /**
  * 验证核心配置完整性
  */
-function validateCoreConfigIntact(oldConfig: any, newConfig: any) {
+function validateCoreConfigIntact(oldConfig: AITestConfig, newConfig: AITestConfig): void {
   for (const path of LOCKED_PATHS) {
     const oldValue = getNestedValue(oldConfig, path)
     const newValue = getNestedValue(newConfig, path)
@@ -94,7 +95,7 @@ function validateCoreConfigIntact(oldConfig: any, newConfig: any) {
 /**
  * 获取嵌套对象的值
  */
-function getNestedValue(obj: any, path: string) {
+function getNestedValue(obj: Record<string, any>, path: string): unknown {
   return path.split('.').reduce((curr: any, key: string) => curr?.[key], obj)
 }
 
