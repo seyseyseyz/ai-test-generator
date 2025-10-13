@@ -16,11 +16,33 @@
  * @packageDocumentation
  */
 
-// 导出核心模块（最常用）
-export * from './core/index.js'
-
-// 导出类型定义
+// 导出类型定义（优先，避免冲突）
 export * from './types/index.js'
+
+// 导出核心模块函数（排除types，避免重复）
+export {
+  // scanner
+  scanCode,
+  // git-analyzer
+  analyzeGitHistory,
+  // boundary-detector
+  detectBoundaries,
+  formatBoundariesForPrompt,
+  // mock-analyzer
+  analyzeMockRequirements,
+  formatMocksForPrompt,
+  // behavior-classifier
+  classifyBehaviors,
+  formatBehaviorsForPrompt,
+  // scoring
+  scoreTargets,
+  calculateROI,
+  calculateBusinessCriticality,
+  calculateErrorRisk,
+  calculateTestability,
+  calculateCodeComplexity,
+  calculateCoverage
+} from './core/index.js'
 
 // 导出其他模块（通过子路径导入）
 // import * from 'ai-test-generator/ai'
