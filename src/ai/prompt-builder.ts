@@ -10,7 +10,6 @@ import { generateFewShotPrompt } from '../../templates/test-examples.js';
 import { type FunctionDeclaration, Project, type SourceFile } from 'ts-morph';
 import { detectBoundaries, formatBoundariesForPrompt } from '../core/boundary-detector.js';
 import { analyzeMockRequirements, formatMocksForPrompt } from '../core/mock-analyzer.js';
-import { classifyBehaviors, formatBehaviorsForPrompt } from '../core/behavior-classifier.js';
 
 interface TargetFilter {
   onlyTodo?: boolean
@@ -208,6 +207,33 @@ ${fewShotExample}
 6. 必要时使用 mock 模拟依赖
 7. 测试文件命名：与原文件同名，加 .test 后缀
 8. 严禁修改被测源码与新增依赖；避免使用真实时间/网络/随机数（请使用 fake timers、模块化 mock）
+
+## ⚠️  测试场景分类（AI 自主分析）
+**重要**：请基于函数的实际代码逻辑，自行分析以下三类测试场景：
+
+### ✅ Happy Path（主流程）
+- 分析函数的核心业务逻辑和设计意图
+- 识别正常情况下的预期输入和输出
+- 基于函数名、参数、返回值理解业务目的
+- **示例**：\`loadJson\` 函数 → "加载有效的 JSONC 文件，正确处理注释并返回解析后的对象"
+
+### ⚠️  Edge Cases（边界情况）
+- 分析可能出现的特殊输入或状态
+- 识别代码中的条件分支和边界判断（如 \`!filePath\`、空文件、特殊字符）
+- 关注参数类型的边界值和极端情况
+- **示例**：\`loadJson\` → 文件不存在、空文件路径、JSON 包含注释、空 JSON
+
+### ❌ Error Handling（错误处理）
+- 分析代码中的 try-catch、错误返回、异常抛出
+- 识别可能失败的操作（文件读取、JSON 解析、网络请求）
+- 明确错误处理方式（返回默认值、抛出异常、返回错误对象）
+- **示例**：\`loadJson\` → JSON 语法错误返回 defaultValue、文件读取失败返回 defaultValue
+
+**原则**：
+- ❌ 不要凭空猜测！必须基于实际代码逻辑分析
+- ❌ 不要生成与业务无关的通用测试（如"处理 null/undefined"）
+- ✅ 每个场景必须有明确的代码依据（if 条件、try-catch、参数验证等）
+- ✅ 场景描述应具体，体现业务价值
 ${customInstructions ? `\n${customInstructions}\n` : ''}
 ---
 
@@ -237,10 +263,8 @@ ${JSON.stringify({ version: 1, files }, null, 2)}
     const testPath = target.path.replace(/\.(ts|tsx|js|jsx)$/i, (m: string) => `.test${m}`)
     
     // 🆕 v2.3.0: 边界检测 + Mock 分析（Keploy 风格）
-    // 🆕 v2.4.0: Behavior 分类（Qodo Cover 风格）
     let boundariesText = ''
     let mocksText = ''
-    let behaviorsText = ''
     
     if (project && existsSync(target.path)) {
       try {
@@ -259,12 +283,6 @@ ${JSON.stringify({ version: 1, files }, null, 2)}
           const mocks = analyzeMockRequirements(targetFunc)
           if (mocks.length > 0) {
             mocksText = `\n${formatMocksForPrompt(mocks)}`
-          }
-          
-          // 🆕 v2.4.0: Behavior 分类
-          const behaviors = classifyBehaviors(targetFunc)
-          if (behaviors.length > 0) {
-            behaviorsText = `\n${formatBehaviorsForPrompt(behaviors)}`
           }
         }
       } catch (error: unknown) {
@@ -285,7 +303,7 @@ ${JSON.stringify({ version: 1, files }, null, 2)}
 \`\`\`typescript
 ${code}
 \`\`\`
-${boundariesText}${mocksText}${behaviorsText}
+${boundariesText}${mocksText}
 **测试文件路径**: \`${testPath}\`
 
 ---

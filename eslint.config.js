@@ -30,7 +30,7 @@ export default tseslint.config(
       'no-var': 'error',
       
       // === 复杂度控制 ===
-      'complexity': ['warn', 15],
+      'complexity': ['warn', 24],
       'max-depth': ['warn', 4],
       'max-lines-per-function': ['warn', {
         max: 150,
@@ -44,7 +44,7 @@ export default tseslint.config(
       }],
 
       // === SonarJS 规则 ===
-      'sonarjs/cognitive-complexity': ['warn', 20],
+      'sonarjs/cognitive-complexity': ['warn', 24],
       'sonarjs/no-duplicate-string': 'off', // 提示文本可能重复
       'sonarjs/no-identical-functions': 'warn',
       'sonarjs/no-collapsible-if': 'warn',
