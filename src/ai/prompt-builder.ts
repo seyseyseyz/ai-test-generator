@@ -347,7 +347,7 @@ export function runCLI(argv: string[] = process.argv): void {
       filter.onlyPaths = csv.split(',').map(s => s.trim()).filter(Boolean);
     } else if (arg === '--function-list') {
       // 🆕 v2.4.0: 支持从文件读取函数名列表（用于并行生成）
-      const listPath = args[++i];
+      const listPath = args[++i] || '';
       try {
         const functionNames = readFileSync(listPath, 'utf8').split('\n').map(s => s.trim()).filter(Boolean);
         filter.functionNames = functionNames;
@@ -390,8 +390,9 @@ export function runCLI(argv: string[] = process.argv): void {
     
     console.error(`✅ 找到 ${targets.length} 个目标\n`);
     console.log(buildBatchPrompt(targets, options));
-  } catch (err) {
-    console.error(`❌ 错误: ${err.message}`);
+  } catch (err: unknown) {
+    const error = err as Error
+    console.error(`❌ 错误: ${error?.message || String(err)}`);
     process.exit(1);
   }
 }
