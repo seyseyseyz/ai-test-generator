@@ -91,14 +91,14 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
   const internalInclude = cfg.internalInclude === true
   const minLoc = cfg?.internalThresholds?.minLoc ?? 15
 
-  const project = new (Project as any)({ skipAddingFilesFromTsConfig: true })
+  const project = new Project({ skipAddingFilesFromTsConfig: true })
   files.forEach(f => project.addSourceFileAtPathIfExists(f))
 
   const targets: FunctionTarget[] = []
   
   // 辅助函数：判断变量是否为可测试的函数/组件
-  function isTestableVariable(v: any): boolean {
-    const init = v?.getInitializer()
+  function isTestableVariable(v: VariableDeclaration): boolean {
+    const init = v.getInitializer()
     if (!init) return false
     const kind = init.getKind()
     // 箭头函数、函数表达式、React组件（JSX）、HOC包装
@@ -113,7 +113,7 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
   // ✅ 文件级缓存：避免重复扫描每个文件的导入
   const fileImportsCache = new Map<string, string[]>()
   
-  function getCachedFileImports(sf: any): string[] {
+  function getCachedFileImports(sf: SourceFile): string[] {
     const filePath = sf.getFilePath()
     if (fileImportsCache.has(filePath)) {
       return fileImportsCache.get(filePath) || []
@@ -122,17 +122,31 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
     const imports = sf.getImportDeclarations()
     const criticalKeywords = ['stripe', 'payment', 'auth', 'axios', 'fetch', 'prisma', 'db', 'api', 'jotai', 'zustand']
     const criticalImports = imports
-      .map((imp: any) => imp.getModuleSpecifierValue())
-      .filter((mod: string) => criticalKeywords.some(kw => mod.toLowerCase().includes(kw)))
+      .map(imp => imp.getModuleSpecifierValue())
+      .filter(mod => criticalKeywords.some(kw => mod.toLowerCase().includes(kw)))
       .slice(0, 5) // 限制数量
     
     fileImportsCache.set(filePath, criticalImports)
     return criticalImports
   }
   
+  /**
+   * 函数元数据接口
+   */
+  interface FunctionMetadata {
+    criticalImports: string[]
+    businessEntities: string[]
+    hasDocumentation: boolean
+    documentation: string
+    errorHandling: number
+    externalCalls: number
+    paramCount: number
+    returnType: string
+  }
+
   // ✅ 新增：提取函数的 AI 分析元数据
-  function extractMetadata(node: any, sf: any): any {
-    const metadata: any = {
+  function extractMetadata(node: FunctionDeclaration | VariableDeclaration | undefined, sf: SourceFile): FunctionMetadata {
+    const metadata: FunctionMetadata = {
       criticalImports: [],
       businessEntities: [],
       hasDocumentation: false,
@@ -150,28 +164,28 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
       metadata.criticalImports = getCachedFileImports(sf)
       
       // 2. 提取参数类型（识别业务实体）
-      if (node.getParameters) {
+      if ('getParameters' in node && typeof node.getParameters === 'function') {
         const params = node.getParameters()
         metadata.paramCount = params.length
         
         // ✅ 从配置读取业务实体关键词（支持项目定制）
-        const entityKeywords = cfg?.aiEnhancement?.entityKeywords || 
+        const entityKeywords = (cfg?.aiEnhancement as { entityKeywords?: string[] })?.entityKeywords || 
           ['Payment', 'Order', 'Booking', 'User', 'Hotel', 'Room', 'Cart', 'Price', 'Guest', 'Request', 'Response']
         
         metadata.businessEntities = params
-          .map((p: any) => {
+          .map(p => {
             try {
               return p.getType().getText()
             } catch {
               return ''
             }
           })
-          .filter((type: string) => entityKeywords.some((kw: any) => type.includes(kw)))
+          .filter(type => entityKeywords.some(kw => type.includes(kw)))
           .slice(0, 3) // 限制数量
       }
       
       // 3. 提取返回类型
-      if (node.getReturnType) {
+      if ('getReturnType' in node && typeof node.getReturnType === 'function') {
         try {
           const returnType = node.getReturnType().getText()
           // 简化类型（避免过长）
@@ -180,12 +194,12 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
       }
       
       // 4. 提取 JSDoc 注释
-      if (node.getJsDocs) {
+      if ('getJsDocs' in node && typeof node.getJsDocs === 'function') {
         const jsDocs = node.getJsDocs()
         if (jsDocs.length > 0) {
           metadata.hasDocumentation = true
           metadata.documentation = jsDocs
-            .map((doc: any) => {
+            .map(doc => {
               const comment = doc.getComment()
               return typeof comment === 'string' ? comment : ''
             })
@@ -196,14 +210,14 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
       }
       
       // 5. 统计异常处理（try-catch）
-      if (node.getDescendantsOfKind) {
+      if ('getDescendantsOfKind' in node && typeof node.getDescendantsOfKind === 'function') {
         metadata.errorHandling = node.getDescendantsOfKind(SyntaxKind.TryStatement).length
       }
       
       // 6. 统计外部 API 调用
-      if (node.getDescendantsOfKind) {
-        const callExpressions = node.getDescendantsOfKind((SyntaxKind as any).CallExpression)
-        metadata.externalCalls = callExpressions.filter((call: any) => {
+      if ('getDescendantsOfKind' in node && typeof node.getDescendantsOfKind === 'function') {
+        const callExpressions = node.getDescendantsOfKind(SyntaxKind.CallExpression)
+        metadata.externalCalls = callExpressions.filter(call => {
           const expr = call.getExpression().getText()
           return /fetch|axios|\.get\(|\.post\(|\.put\(|\.delete\(/.test(expr)
         }).length
@@ -221,7 +235,7 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
     const content = sf.getFullText()
 
     // 导出符号 - 仅包含函数和组件
-    const exported = Array.from(new Set(sf.getExportSymbols().map((s: any) => s.getName()).filter(Boolean)))
+    const exported = Array.from(new Set(sf.getExportSymbols().map(s => s.getName()).filter(Boolean)))
     const fileLoc = content.split('\n').length
     for (const name of exported) {
       // 检查是否为函数声明
@@ -266,7 +280,7 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
 
     // 内部顶层命名函数（非导出）
     if (internalInclude) {
-      const fnDecls = sf.getFunctions().filter((fn: any) => !fn.isExported() && !!fn.getName())
+      const fnDecls = sf.getFunctions().filter(fn => !fn.isExported() && !!fn.getName())
       for (const fn of fnDecls) {
         const name = fn.getName() as string
         const start = fn.getStart()
@@ -296,7 +310,7 @@ async function main(): Promise<void> {
   const cfg = loadJson('ut_scoring_config.json') || {}
   
   // 从配置文件和命令行参数获取排除目录
-  const configExcludes = (cfg as any)?.targetGeneration?.excludeDirs || []
+  const configExcludes = (cfg?.targetGeneration as { excludeDirs?: string[] })?.excludeDirs || []
   const excludeArg = args.exclude
   const cliExcludes = (typeof excludeArg === 'string') 
     ? excludeArg.split(',').map((s: string) => s.trim()) 
