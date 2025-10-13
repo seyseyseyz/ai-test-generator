@@ -29,8 +29,8 @@ import type { FunctionDeclaration, ArrowFunction, FunctionExpression } from 'ts-
  * 构建函数指标提供者
  */
 async function buildFuncMetricsProvider(targets: FunctionTarget[]) {
-  const tsMorph = await requirePackage('ts-morph', 'ts-morph')
-  const escomplex = await requirePackage('escomplex', 'escomplex')
+  const tsMorph = await requirePackage<typeof import('ts-morph')>('ts-morph', 'ts-morph')
+  const escomplex = await requirePackage<typeof import('escomplex')>('escomplex', 'escomplex')
   const { Project, SyntaxKind } = tsMorph
   const project = new Project({ skipAddingFilesFromTsConfig: true })
   
