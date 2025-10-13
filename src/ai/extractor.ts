@@ -206,8 +206,9 @@ export function runCLI(argv: string[] = process.argv): void {
     }
     
     process.exit(errors.length > 0 ? 1 : 0);
-  } catch (err) {
-    console.error(`❌ 错误: ${err.message}`);
+  } catch (err: unknown) {
+    const error = err as Error
+    console.error(`❌ 错误: ${error?.message || String(err)}`);
     process.exit(1);
   }
 }
