@@ -217,7 +217,7 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
       // 6. 统计外部 API 调用
       if ('getDescendantsOfKind' in node && typeof node.getDescendantsOfKind === 'function') {
         const callExpressions = node.getDescendantsOfKind(TsSyntaxKind.CallExpression)
-        metadata.externalCalls = callExpressions.filter(call => {
+        metadata.externalCalls = callExpressions.filter((call: ReturnType<typeof node.getDescendantsOfKind>[number]) => {
           const expr = call.getExpression().getText()
           return /fetch|axios|\.get\(|\.post\(|\.put\(|\.delete\(/.test(expr)
         }).length
@@ -235,7 +235,7 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
     const content = sf.getFullText()
 
     // 导出符号 - 仅包含函数和组件
-    const exported = Array.from(new Set(sf.getExportSymbols().map(s => s.getName()).filter(Boolean)))
+    const exported = Array.from(new Set(sf.getExportSymbols().map((s: ReturnType<typeof sf.getExportSymbols>[number]) => s.getName()).filter(Boolean)))
     const fileLoc = content.split('\n').length
     for (const name of exported) {
       // 检查是否为函数声明
@@ -280,7 +280,7 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
 
     // 内部顶层命名函数（非导出）
     if (internalInclude) {
-      const fnDecls = sf.getFunctions().filter(fn => !fn.isExported() && !!fn.getName())
+      const fnDecls = sf.getFunctions().filter((fn: ReturnType<typeof sf.getFunctions>[number]) => !fn.isExported() && !!fn.getName())
       for (const fn of fnDecls) {
         const name = fn.getName() as string
         const start = fn.getStart()
