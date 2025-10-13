@@ -1,12 +1,16 @@
 #!/usr/bin/env node
-// @ts-nocheck
 /**
  * 运行 Jest，产出 JSON 与覆盖率
  */
 
 import { spawn } from 'node:child_process'
 
-function runJest(args = []) {
+/**
+ * 运行 Jest 测试
+ * @param args - Jest 命令行参数
+ * @returns Promise，成功时 resolve，失败时 reject
+ */
+function runJest(args: string[] = []): Promise<number> {
   return new Promise((resolve, reject) => {
     const child = spawn('npx', ['jest', '--json', '--outputFile=reports/jest-report.json', '--coverage', ...args], {
       stdio: 'inherit',
@@ -17,17 +21,20 @@ function runJest(args = []) {
   })
 }
 
-async function main(argv = process.argv) {
+/**
+ * CLI 入口
+ * @param argv - 命令行参数
+ */
+async function main(argv: string[] = process.argv): Promise<void> {
   const extra = argv.slice(2)
   try {
     await runJest(extra)
     process.exit(0)
   } catch (err) {
-    console.error(err.message)
+    const message = err instanceof Error ? err.message : String(err)
+    console.error(message)
     process.exit(1)
   }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) main()
-
-

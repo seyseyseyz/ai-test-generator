@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 /**
  * 解析 reports/jest-report.json，提取失败原因并分类
  * 输出一个简要的提示文本，可注入下一轮 Prompt
@@ -7,12 +6,35 @@
 
 import { readFileSync, existsSync } from 'node:fs'
 
-export function analyze(path = 'reports/jest-report.json') {
+// ============================================================================
+// Type Definitions
+// ============================================================================
+
+/** Test analysis result */
+export interface AnalysisResult {
+  summary: string
+  total: number
+  failed: number
+  hints: string[]
+}
+
+// ============================================================================
+// Analysis Function
+// ============================================================================
+
+/**
+ * 分析 Jest 测试报告
+ * @param path - Jest 报告 JSON 文件路径
+ * @returns 分析结果
+ */
+export function analyze(path: string = 'reports/jest-report.json'): AnalysisResult {
   if (!existsSync(path)) return { summary: 'No jest-report.json', total: 0, failed: 0, hints: [] }
+  
   const json = JSON.parse(readFileSync(path, 'utf8'))
   const testResults = json.testResults || []
-  const hints = []
-  let total = 0, failed = 0
+  const hints: string[] = []
+  let total = 0
+  let failed = 0
 
   for (const f of testResults) {
     for (const a of (f.assertionResults || [])) {
@@ -33,12 +55,14 @@ export function analyze(path = 'reports/jest-report.json') {
   return { summary, total, failed, hints: uniqueHints }
 }
 
-export function runCLI(argv = process.argv) {
+/**
+ * CLI 入口
+ * @param argv - 命令行参数
+ */
+export function runCLI(argv: string[] = process.argv): void {
   const path = argv[2] || 'reports/jest-report.json'
   const res = analyze(path)
   console.log(JSON.stringify(res, null, 2))
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) runCLI()
-
-
