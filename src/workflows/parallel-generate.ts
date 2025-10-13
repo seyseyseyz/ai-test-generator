@@ -17,7 +17,7 @@
  * @module parallel-generate
  */
 
-import { spawn } from 'node:child_process'
+import { spawn, ChildProcess, StdioOptions } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -36,19 +36,28 @@ const CONCURRENCY_CONFIG = {
 }
 
 /**
+ * 子进程运行选项接口
+ */
+interface ShellOptions {
+  captureStdout?: boolean
+  cwd?: string
+  env?: Record<string, string>
+}
+
+/**
  * 辅助函数：运行子进程
  */
-function sh(cmd: string, args: string[], options: any): Promise<string | null> {
+function sh(cmd: string, args: string[], options: ShellOptions = {}): Promise<string | null> {
   return new Promise((resolve, reject) => {
-    const stdio: any = options.captureStdout ? ['inherit', 'pipe', 'inherit'] : 'inherit'
-    const child: any = spawn(cmd, args, { 
+    const stdio: StdioOptions = options.captureStdout ? ['inherit', 'pipe', 'inherit'] : 'inherit'
+    const child: ChildProcess = spawn(cmd, args, { 
       stdio, 
       cwd: options.cwd || process.cwd(),
       env: { ...process.env, ...options.env }
     })
     
     const chunks: Buffer[] = []
-    if (options.captureStdout) {
+    if (options.captureStdout && child.stdout) {
       child.stdout.on('data', (d: Buffer) => chunks.push(d))
     }
     
@@ -65,9 +74,21 @@ function sh(cmd: string, args: string[], options: any): Promise<string | null> {
 }
 
 /**
+ * TODO函数信息接口
+ */
+interface TodoFunction {
+  name: string
+  path: string
+  score: number
+  priority: string
+  type: string
+  layer: string
+}
+
+/**
  * 读取 TODO 函数列表
  */
-function readTodoFunctions(reportPath: string, priority: string | null): any[] {
+function readTodoFunctions(reportPath: string, priority: string | null): TodoFunction[] {
   if (!existsSync(reportPath)) {
     throw new Error(`Report not found: ${reportPath}`)
   }
@@ -104,28 +125,40 @@ function readTodoFunctions(reportPath: string, priority: string | null): any[] {
 }
 
 /**
+ * 批次分组选项接口
+ */
+interface BatchOptions {
+  minBatchSize?: number
+  maxBatchSize?: number
+}
+
+/**
  * 将函数分组为批次
  * 
  * 策略:
  * - 按文件分组（同一文件的函数放在一起，提高上下文效率）
  * - 控制批次大小在合理范围内
  */
-function groupIntoBatches(functions: any[], options: any = {}): any[] {
+function groupIntoBatches(functions: TodoFunction[], options: BatchOptions = {}): TodoFunction[][] {
   const { minBatchSize, maxBatchSize } = { ...CONCURRENCY_CONFIG, ...options }
   
   // 按文件分组
-  const byFile: any = {}
+  const byFile: Record<string, TodoFunction[]> = {}
   for (const func of functions) {
     if (!byFile[func.path]) {
       byFile[func.path] = []
     }
-    byFile[func.path].push(func)
+    const fileGroup = byFile[func.path]
+    if (fileGroup) {
+      fileGroup.push(func)
+    }
   }
   
   // 转换为批次列表
-  const batches: any[] = []
+  const batches: TodoFunction[][] = []
   for (const filePath in byFile) {
     const fileFunctions = byFile[filePath]
+    if (!fileFunctions) continue
     
     // 如果一个文件的函数太多，拆分成多个批次
     if (fileFunctions.length > maxBatchSize) {
@@ -138,8 +171,8 @@ function groupIntoBatches(functions: any[], options: any = {}): any[] {
   }
   
   // 合并过小的批次
-  const finalBatches = []
-  let currentBatch = []
+  const finalBatches: TodoFunction[][] = []
+  let currentBatch: TodoFunction[] = []
   
   for (const batch of batches) {
     currentBatch.push(...batch)
@@ -165,6 +198,26 @@ function groupIntoBatches(functions: any[], options: any = {}): any[] {
 }
 
 /**
+ * 批次生成选项接口
+ */
+interface GenerateBatchOptions {
+  reportPath?: string
+  workDir?: string
+  config?: string
+}
+
+/**
+ * 批次生成结果接口
+ */
+interface BatchResult {
+  batchIndex: number
+  total: number
+  success: string[]
+  failed: string[]
+  error: string | null
+}
+
+/**
  * 生成单个批次的测试
  * 
  * 每个批次独立运行：
@@ -173,21 +226,21 @@ function groupIntoBatches(functions: any[], options: any = {}): any[] {
  * 3. 提取测试
  * 4. 运行 Jest
  */
-async function generateBatch(batch: any[], batchIndex: number, options: any = {}): Promise<any> {
+async function generateBatch(batch: TodoFunction[], batchIndex: number, options: GenerateBatchOptions = {}): Promise<BatchResult> {
   const { reportPath, workDir, config: _config } = options
   
   console.log(`\n🔄 [Batch ${batchIndex + 1}] Generating ${batch.length} functions...`)
-  console.log(`   Files: ${[...new Set(batch.map((f: any) => f.path))].join(', ')}`)
+  console.log(`   Files: ${[...new Set(batch.map(f => f.path))].join(', ')}`)
   
-  const batchDir = join(workDir, `batch_${batchIndex}`)
+  const batchDir = join(workDir || '.', `batch_${batchIndex}`)
   mkdirSync(batchDir, { recursive: true })
   
-  const result = {
+  const result: BatchResult = {
     batchIndex,
     total: batch.length,
-    success: [] as string[],
-    failed: [] as string[],
-    error: null as any
+    success: [],
+    failed: [],
+    error: null
   }
   
   try {
@@ -225,35 +278,35 @@ async function generateBatch(batch: any[], batchIndex: number, options: any = {}
     const aiResponsePath = join(batchDir, 'ai_response.txt')
     await sh('node', [
       join(PKG_ROOT, 'lib/ai/client.mjs'),
-      '--prompt', promptPath,
-      '--out', aiResponsePath
+      '--prompt', promptPath || '',
+      '--out', aiResponsePath || ''
     ], { captureStdout: false, cwd: process.cwd(), env: {} })
     
     // 3. 提取测试
     await sh('node', [
       join(PKG_ROOT, 'lib/ai/extractor.mjs'),
-      aiResponsePath,
+      aiResponsePath || '',
       '--overwrite'
     ], { captureStdout: false, cwd: process.cwd(), env: {} })
     
     // 4. 运行 Jest（只针对这个批次的测试文件）
-    const testFiles = [...new Set(batch.map((f: any) => (f.path || '').replace(/\.(ts|tsx|js|jsx)$/i, (m: string) => `.test${m}`)))]
+    const testFiles = [...new Set(batch.map(f => f.path.replace(/\.(ts|tsx|js|jsx)$/i, m => `.test${m}`)))]
     
     try {
       await sh('npm', ['test', '--', ...testFiles], { captureStdout: false, cwd: process.cwd(), env: {} })
-      result.success = batch.map((f: any) => f.name) as string[]
+      result.success = batch.map(f => f.name)
       console.log(`✅ [Batch ${batchIndex + 1}] All tests passed`)
-    } catch (err: any) {
+    } catch (err: unknown) {
       // 即使测试失败也继续（会在后续分析中处理）
       console.warn(`⚠️  [Batch ${batchIndex + 1}] Some tests failed`)
-      result.failed = batch.map((f: any) => f.name) as string[]
+      result.failed = batch.map(f => f.name)
     }
     
-  } catch (err: any) {
+  } catch (err: unknown) {
     const error = err as Error
     console.error(`❌ [Batch ${batchIndex + 1}] Failed:`, error?.message || String(err))
     result.error = error?.message || String(err)
-    result.failed = batch.map((f: any) => f.name) as string[]
+    result.failed = batch.map(f => f.name)
   }
   
   return result
@@ -323,7 +376,10 @@ export async function parallelGenerate(options: any = {}): Promise<void> {
   
   console.log(`   Created ${batches.length} batches`)
   for (let i = 0; i < batches.length; i++) {
-    console.log(`   - Batch ${i + 1}: ${batches[i].length} functions`)
+    const batch = batches[i]
+    if (batch) {
+      console.log(`   - Batch ${i + 1}: ${batch.length} functions`)
+    }
   }
   console.log()
   
