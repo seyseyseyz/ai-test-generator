@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Generate 工作流：生成单元测试
  */
@@ -8,15 +7,35 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { iterativeImprove } from './iterative-improve.js'
+import type { GenerateOptions } from '../types/cli.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const PKG_ROOT = join(__dirname, '../..')
 
+// ============================================================================
+// Type Definitions
+// ============================================================================
+
+/** Batch generation result */
+interface BatchResult {
+  generated: number
+  passed: number
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
 /**
  * 生成单批测试
+ * @param priority - 优先级
+ * @param count - 数量
+ * @param skip - 跳过数量
+ * @param report - 报告路径
+ * @returns 批次结果
  */
-async function generateBatch(priority, count, skip, report) {
+async function generateBatch(priority: string, count: number, skip: number, report: string): Promise<BatchResult> {
   const batchScript = join(PKG_ROOT, 'lib/workflows/batch.mjs')
   
   return new Promise((resolve, reject) => {
@@ -25,7 +44,7 @@ async function generateBatch(priority, count, skip, report) {
       cwd: process.cwd()
     })
     
-    child.on('close', (code) => {
+    child.on('close', (code: number | null) => {
       if (code === 0) {
         resolve({ generated: count, passed: count })
       } else {
@@ -37,11 +56,16 @@ async function generateBatch(priority, count, skip, report) {
   })
 }
 
+// ============================================================================
+// Main Workflow
+// ============================================================================
+
 /**
  * Generate 工作流
+ * @param options - 生成选项
  */
-export async function generate(options) {
-  const { count, priority, all, report, iterative, maxIterations, samples } = options
+export async function generate(options: GenerateOptions): Promise<void> {
+  const { count = 10, priority = '', all = false, report = 'reports/ut_scores.md', iterative = false, maxIterations, samples } = options
   
   // 1. 检查报告是否存在
   if (!existsSync(report)) {
@@ -60,7 +84,8 @@ export async function generate(options) {
         samplesPerIteration: samples || 1  // 🆕 N-Sample Generation
       })
     } catch (err) {
-      console.error('❌ Iterative improvement failed:', err.message)
+      const message = err instanceof Error ? err.message : String(err)
+      console.error('❌ Iterative improvement failed:', message)
       process.exit(1)
     }
     return
@@ -101,7 +126,8 @@ export async function generate(options) {
         totalPassed += result.passed
         batchNum++
       } catch (err) {
-        console.error(`❌ Batch ${batchNum} failed:`, err.message)
+        const message = err instanceof Error ? err.message : String(err)
+        console.error(`❌ Batch ${batchNum} failed:`, message)
         break
       }
     }
@@ -113,9 +139,9 @@ export async function generate(options) {
     try {
       await generateBatch(priority, count, 0, report)
     } catch (err) {
-      console.error('❌ Generation failed:', err.message)
+      const message = err instanceof Error ? err.message : String(err)
+      console.error('❌ Generation failed:', message)
       process.exit(1)
     }
   }
 }
-

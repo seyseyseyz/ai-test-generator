@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Init 工作流：初始化配置文件
  */
@@ -6,6 +5,7 @@
 import { existsSync, copyFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import type { InitOptions } from '../types/cli.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -13,8 +13,9 @@ const PKG_ROOT = join(__dirname, '../..')
 
 /**
  * 初始化配置文件
+ * @param options - 初始化选项
  */
-export async function init(options) {
+export async function init(options: InitOptions): Promise<void> {
   const { config } = options
   const configPath = config || 'ai-test.config.jsonc'
   
@@ -39,8 +40,8 @@ export async function init(options) {
     console.log('   2. Run `ai-test analyze` to let AI analyze your codebase')
     console.log('   3. Or run `ai-test scan` to start scoring immediately')
   } catch (err) {
-    console.error(`❌ Failed to create config: ${err.message}`)
+    const message = err instanceof Error ? err.message : String(err)
+    console.error(`❌ Failed to create config: ${message}`)
     process.exit(1)
   }
 }
-

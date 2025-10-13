@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Scan 工作流：扫描代码 + 打分 + 生成报告
  */
@@ -7,16 +6,23 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { detectConfig, readConfig } from '../utils/config-manager.js'
+import { detectConfig } from '../utils/config-manager.js'
+import type { ScanCommandOptions } from '../types/cli.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const PKG_ROOT = join(__dirname, '../..')
 
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
 /**
  * 移除 JSON 注释
+ * @param str - JSON 字符串
+ * @returns 清理后的 JSON 字符串
  */
-function stripJsonComments(str) {
+function stripJsonComments(str: string): string {
   return String(str)
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/(^|\s)\/\/.*$/gm, '')
@@ -24,8 +30,11 @@ function stripJsonComments(str) {
 
 /**
  * 运行脚本
+ * @param scriptPath - 脚本路径
+ * @param args - 参数
+ * @returns Promise
  */
-function runScript(scriptPath, args) {
+function runScript(scriptPath: string, args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
     const fullPath = join(PKG_ROOT, 'lib', scriptPath)
     const child = spawn('node', [fullPath, ...args], {
@@ -33,7 +42,7 @@ function runScript(scriptPath, args) {
       cwd: process.cwd()
     })
 
-    child.on('close', (code) => {
+    child.on('close', (code: number | null) => {
       if (code === 0) {
         resolve()
       } else {
@@ -45,11 +54,16 @@ function runScript(scriptPath, args) {
   })
 }
 
+// ============================================================================
+// Main Workflow
+// ============================================================================
+
 /**
  * Scan 工作流
+ * @param options - 扫描选项
  */
-export async function scan(options) {
-  let { config, output, skipGit } = options
+export async function scan(options: ScanCommandOptions): Promise<void> {
+  let { config = 'ai-test.config.jsonc', output = 'reports', skipGit = false } = options
   
   // 1. 检查配置
   console.log('🔍 Step 1: Checking configuration...')
@@ -76,7 +90,7 @@ export async function scan(options) {
     
     if (covCfg.runBeforeScan) {
       console.log('🧪 Running coverage before scan...')
-      await new Promise((resolve) => {
+      await new Promise<void>((resolve) => {
         const cmd = covCfg.command || 'npx jest --coverage --silent'
         const child = spawn(cmd, { stdio: 'inherit', shell: true, cwd: process.cwd() })
         child.on('close', () => resolve())
@@ -138,8 +152,8 @@ export async function scan(options) {
       console.log(`\n💡 Next: ai-test generate`)
     }
   } catch (err) {
-    console.error('❌ Scan failed:', err.message)
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('❌ Scan failed:', message)
     process.exit(1)
   }
 }
-
