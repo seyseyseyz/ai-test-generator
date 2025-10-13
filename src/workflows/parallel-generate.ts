@@ -38,21 +38,21 @@ const CONCURRENCY_CONFIG = {
 /**
  * 辅助函数：运行子进程
  */
-function sh(cmd, args, options) {
+function sh(cmd: string, args: string[], options: any): Promise<string | null> {
   return new Promise((resolve, reject) => {
-    const stdio = options.captureStdout ? ['inherit', 'pipe', 'inherit'] : 'inherit'
-    const child = spawn(cmd, args, { 
+    const stdio: any = options.captureStdout ? ['inherit', 'pipe', 'inherit'] : 'inherit'
+    const child: any = spawn(cmd, args, { 
       stdio, 
       cwd: options.cwd || process.cwd(),
       env: { ...process.env, ...options.env }
     })
     
-    const chunks = []
+    const chunks: Buffer[] = []
     if (options.captureStdout) {
-      child.stdout.on('data', d => chunks.push(Buffer.from(d)))
+      child.stdout.on('data', (d: Buffer) => chunks.push(d))
     }
     
-    child.on('close', code => {
+    child.on('close', (code: number) => {
       if (code === 0) {
         const output = options.captureStdout ? Buffer.concat(chunks).toString('utf8') : null
         resolve(output)
@@ -110,11 +110,11 @@ function readTodoFunctions(reportPath: string, priority: string | null): any[] {
  * - 按文件分组（同一文件的函数放在一起，提高上下文效率）
  * - 控制批次大小在合理范围内
  */
-function groupIntoBatches(functions, options = {}) {
+function groupIntoBatches(functions: any[], options: any = {}): any[] {
   const { minBatchSize, maxBatchSize } = { ...CONCURRENCY_CONFIG, ...options }
   
   // 按文件分组
-  const byFile = {}
+  const byFile: any = {}
   for (const func of functions) {
     if (!byFile[func.path]) {
       byFile[func.path] = []
@@ -123,7 +123,7 @@ function groupIntoBatches(functions, options = {}) {
   }
   
   // 转换为批次列表
-  const batches = []
+  const batches: any[] = []
   for (const filePath in byFile) {
     const fileFunctions = byFile[filePath]
     
@@ -172,11 +172,11 @@ function groupIntoBatches(functions, options = {}) {
  * 3. 提取测试
  * 4. 运行 Jest
  */
-async function generateBatch(batch, batchIndex, options = {}) {
-  const { reportPath, workDir } = options
+async function generateBatch(batch: any[], batchIndex: number, options: any = {}): Promise<any> {
+  const { reportPath, workDir, config } = options
   
   console.log(`\n🔄 [Batch ${batchIndex + 1}] Generating ${batch.length} functions...`)
-  console.log(`   Files: ${[...new Set(batch.map(f => f.path))].join(', ')}`)
+  console.log(`   Files: ${[...new Set(batch.map((f: any) => f.path))].join(', ')}`)
   
   const batchDir = join(workDir, `batch_${batchIndex}`)
   mkdirSync(batchDir, { recursive: true })
