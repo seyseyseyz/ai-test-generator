@@ -17,7 +17,8 @@ import { applyAISuggestions } from '../ai/config-writer.js'
  * AI 分析工作流
  */
 export async function analyze(options: any): Promise<void> {
-  const { config, output } = options
+  const { config } = options
+  // output 参数暂未使用
   
   // 1. 检查配置是否存在
   console.log('🔍 Step 1: Checking configuration...')
@@ -87,17 +88,17 @@ export async function analyze(options: any): Promise<void> {
   // 7. 解析并验证响应
   console.log('✅ Step 7: Validating AI suggestions...')
   
-  let parsed
+  let parsed: any
   try {
     // 尝试提取 JSON（AI 可能返回 markdown 包装）
-    const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || 
-                      responseText.match(/```\s*([\s\S]*?)\s*```/)
+    const jsonMatch = (responseText as any).match(/```json\s*([\s\S]*?)\s*```/) || 
+                      (responseText as any).match(/```\s*([\s\S]*?)\s*```/)
     
     const jsonText = jsonMatch ? jsonMatch[1] : responseText
     parsed = JSON.parse(jsonText)
-  } catch (err) {
+  } catch (err: any) {
     console.error('❌ Failed to parse AI response as JSON')
-    console.error('   Response preview:', responseText.slice(0, 500))
+    console.error('   Response preview:', (responseText as any).slice(0, 500))
     process.exit(1)
   }
   
@@ -127,7 +128,7 @@ export async function analyze(options: any): Promise<void> {
     await applyAISuggestions(configPath, approved)
     console.log('✅ Config updated!')
     console.log('\n💡 Next: Run `ai-test scan` to recalculate scores with AI enhancements.')
-  } catch (err) {
+  } catch (err: any) {
     console.error(`❌ Failed to update config: ${err.message}`)
     process.exit(1)
   }
