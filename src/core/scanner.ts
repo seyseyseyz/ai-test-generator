@@ -11,7 +11,7 @@ import type { FunctionTarget, FunctionType, Layer, AITestConfig } from '../types
  * List TypeScript source files with exclusions
  */
 async function listFiles(excludeDirs: string[] = []): Promise<string[]> {
-  const fg = (await requirePackage('fast-glob', 'fast-glob')).default
+  const fg = (await requirePackage<{ default: (patterns: string | string[], options?: any) => Promise<string[]> }>('fast-glob', 'fast-glob')).default
   
   // 基础排除规则
   const baseExcludes = ['!**/*.d.ts', '!**/node_modules/**']
@@ -218,8 +218,12 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
       if ('getDescendantsOfKind' in node && typeof node.getDescendantsOfKind === 'function') {
         const callExpressions = node.getDescendantsOfKind(TsSyntaxKind.CallExpression)
         metadata.externalCalls = callExpressions.filter((call: ReturnType<typeof node.getDescendantsOfKind>[number]) => {
-          const expr = call.getExpression().getText()
-          return /fetch|axios|\.get\(|\.post\(|\.put\(|\.delete\(/.test(expr)
+          try {
+            const expr = 'getExpression' in call && typeof call.getExpression === 'function' ? call.getExpression()?.getText() || '' : ''
+            return /fetch|axios|\.get\(|\.post\(|\.put\(|\.delete\(/.test(expr)
+          } catch {
+            return false
+          }
         }).length
       }
     } catch (err) {
@@ -262,8 +266,7 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
           if (v && isTestableVariable(v)) {
             const type = decideTypeByPathAndName(relPath, name as string)
             const layer = decideLayer(relPath, cfg) as Layer
-            const init = v.getInitializer()
-            const metadata = extractMetadata(init, sf) // ✅ 提取元数据
+            const metadata = extractMetadata(v as any, sf) // ✅ 提取元数据
             targets.push({
               name: name as string,
               path: relPath,
@@ -307,10 +310,10 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
 
 async function main(): Promise<void> {
   const args = parseArgs()
-  const cfg = loadJson('ut_scoring_config.json') || {}
+  const cfg = loadJson<AITestConfig>('ut_scoring_config.json') || {} as AITestConfig
   
   // 从配置文件和命令行参数获取排除目录
-  const configExcludes = (cfg?.targetGeneration as { excludeDirs?: string[] })?.excludeDirs || []
+  const configExcludes = cfg?.targetGeneration?.excludeDirs || []
   const excludeArg = args.exclude
   const cliExcludes = (typeof excludeArg === 'string') 
     ? excludeArg.split(',').map((s: string) => s.trim()) 

@@ -328,6 +328,22 @@ export interface AITestConfig {
     testPattern: string
     coverageThreshold?: number
   }
+  // Scanner specific options
+  internalInclude?: boolean
+  internalThresholds?: {
+    minLoc?: number
+  }
+  targetGeneration?: {
+    excludeDirs?: string[]
+  }
+  aiEnhancement?: {
+    entityKeywords?: string[]
+    analyzed?: boolean
+    analyzedAt?: string
+  }
+  layers?: Record<string, {
+    patterns: string[]
+  }>
 }
 
 /**
