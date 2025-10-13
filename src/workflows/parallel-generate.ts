@@ -202,9 +202,9 @@ async function generateBatch(batch: any[], batchIndex: number, options: any = {}
     writeFileSync(batchListPath, batch.map(f => f.name).join('\n'), 'utf-8')
     promptArgs.push('--function-list', batchListPath)
     
-    let promptText: string | null
+    let promptText: string | null = null
     try {
-      const _hintsFile = join(batchDir, 'hints.txt')
+      // const _hintsFile = join(batchDir, 'hints.txt')
       if (existsSync('reports/hints.txt')) {
         promptText = await sh('node', [...promptArgs, '--hints-file', 'reports/hints.txt'], { 
           captureStdout: true,
@@ -281,13 +281,11 @@ function updateFunctionStatus(reportPath, functionNames, status) {
 /**
  * 主函数：并行生成测试
  */
-export async function parallelGenerate(options = {}) {
-  const {
-    reportPath = 'reports/ut_scores.md',
-    priority = null,
-    count = null,
-    concurrency = CONCURRENCY_CONFIG.default
-  } = options
+export async function parallelGenerate(options: any = {}): Promise<void> {
+  const reportPath: string = (options.reportPath as string) || 'reports/ut_scores.md'
+  const priority: string | null = (options.priority as string) || null
+  const count: number | null = (options.count as number) || null
+  const concurrency: number = (options.concurrency as number) || CONCURRENCY_CONFIG.default
   
   console.log('🚀 Parallel Test Generation (v2.4.0)\n')
   console.log(`📊 Configuration:`)
