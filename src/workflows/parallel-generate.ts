@@ -67,7 +67,7 @@ function sh(cmd, args, options) {
 /**
  * 读取 TODO 函数列表
  */
-function readTodoFunctions(reportPath, priority) {
+function readTodoFunctions(reportPath: string, priority: string | null): any[] {
   if (!existsSync(reportPath)) {
     throw new Error(`Report not found: ${reportPath}`)
   }
@@ -83,7 +83,7 @@ function readTodoFunctions(reportPath, priority) {
     
     const parts = line.split('|').map(p => p.trim()).filter(Boolean)
     if (parts.length >= 7) {
-      const [status, score, pri, name, type, layer, path] = parts
+      const [_status, score, pri, name, _type, _layer, path] = parts
       todoFunctions.push({
         name,
         path,

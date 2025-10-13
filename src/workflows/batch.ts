@@ -40,10 +40,7 @@ function readCoverageSummary(): any {
   try { return JSON.parse(readFileSync(path, 'utf8')) } catch { return null }
 }
 
-function calculateCoverageGain(summary: any): any {
-  if (!summary || !summary.total) return 0
-  return summary.total.lines?.pct ?? 0
-}
+// Removed unused function
 
 /**
  * 从报告中读取 TODO 函数列表
@@ -68,8 +65,8 @@ function readTodoFunctions(reportPath: string, priority: any, limit: number) {
     if (parts.length >= 7) {
       const [_status, score, pri, name, _type, _layer, path] = parts
       todoFunctions.push({
-        name,
-        path,
+        name: name || '',
+        path: path || '',
         score: parseFloat(score),
         priority: pri
       })
@@ -93,11 +90,13 @@ function markFunctionsDone(reportPath: string, functionNames: string[]) {
   let content = readFileSync(reportPath, 'utf-8')
   
   for (const name of functionNames) {
+    if (!name) continue
     // 查找包含该函数名且状态为 TODO 的行，替换为 DONE
     const lines = content.split('\n')
     for (let i = 0; i < lines.length; i++) {
-      if (lines[i].includes(name) && lines[i].includes('| TODO |')) {
-        lines[i] = lines[i].replace('| TODO |', '| DONE |')
+      const line = lines[i]
+      if (line?.includes(name) && line.includes('| TODO |')) {
+        lines[i] = line.replace('| TODO |', '| DONE |')
       }
     }
     content = lines.join('\n')
@@ -126,7 +125,8 @@ async function main(argv: any = process.argv) {
   console.log(`📝 Found ${todoFunctions.length} TODO functions`)
   
   // 记录初始覆盖率
-  const beforeCov: number = getCoveragePercent(readCoverageSummary())
+  const beforeCov = getCoveragePercent(readCoverageSummary())
+  console.log(`📊 Initial coverage: ${beforeCov.toFixed(2)}%`)
 
   // 1) 生成 Prompt（只针对 TODO 函数，加入上一轮失败提示）
   const promptArgs = [
@@ -156,7 +156,7 @@ async function main(argv: any = process.argv) {
 
   // 2) 调用 AI
   console.log('\n🤖 Calling AI...')
-      results.push({ name: funcName as string, status: 'marked_done', testPath })
+  const aiResponse = await sh('node', [join(pkgRoot, 'lib/ai/client.mjs'), 'prompt.txt'], { captureStdout: true }) as string
 
   // 3) 提取测试
   console.log('\n📦 Extracting tests...')
