@@ -5,6 +5,18 @@
  */
 
 import readline from 'readline'
+import type { CategoryKey, SuggestionItem, AISuggestions } from '../types/ai-suggestions.js'
+
+interface ReadlineInterface {
+  question(query: string, callback: (answer: string) => void): void
+  close(): void
+}
+
+interface IndexMapping {
+  globalIndex: number
+  category: CategoryKey
+  localIndex: number
+}
 
 /**
  * 创建 readline 接口
@@ -19,15 +31,15 @@ function createInterface() {
 /**
  * 询问用户输入
  */
-function ask(rl: any, question: any) {
+function ask(rl: ReadlineInterface, question: string): Promise<string> {
   return new Promise(resolve => rl.question(question, resolve))
 }
 
 /**
  * 获取分类图标
  */
-function getCategoryIcon(category: any) {
-  const icons: any = {
+function getCategoryIcon(category: CategoryKey): string {
+  const icons: Record<CategoryKey, string> = {
     businessCriticalPaths: '🔴',
     highRiskModules: '⚠️',
     testabilityAdjustments: '✅'
@@ -38,8 +50,8 @@ function getCategoryIcon(category: any) {
 /**
  * 获取分类名称
  */
-function getCategoryName(category: any) {
-  const names: any = {
+function getCategoryName(category: CategoryKey): string {
+  const names: Record<CategoryKey, string> = {
     businessCriticalPaths: 'Business Critical Paths',
     highRiskModules: 'High Risk Modules',
     testabilityAdjustments: 'Testability Adjustments'
@@ -50,7 +62,7 @@ function getCategoryName(category: any) {
 /**
  * 格式化单个建议（紧凑格式）
  */
-function formatSuggestion(item: any, index: any, category: any) {
+function formatSuggestion(item: SuggestionItem, index: number, category: CategoryKey): string {
   let scoreInfo = ''
   
   if (category === 'businessCriticalPaths') {
@@ -69,15 +81,15 @@ function formatSuggestion(item: any, index: any, category: any) {
 /**
  * 显示所有建议（紧凑视图）
  */
-function displayAllSuggestions(validated: any) {
-  const categories = ['businessCriticalPaths', 'highRiskModules', 'testabilityAdjustments']
-  const totalSuggestions = Object.values(validated).reduce((sum, arr) => sum + (arr as any).length, 0)
+function displayAllSuggestions(validated: AISuggestions): { totalSuggestions: number; indexMapping: IndexMapping[] } {
+  const categories: CategoryKey[] = ['businessCriticalPaths', 'highRiskModules', 'testabilityAdjustments']
+  const totalSuggestions = Object.values(validated).reduce((sum, arr) => sum + arr.length, 0)
   
   console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`)
   console.log(`\n🤖 AI Analysis Results: ${totalSuggestions} suggestions\n`)
   
   let globalIndex = 1
-  const indexMapping: any[] = [] // [{ globalIndex, category, localIndex }, ...]
+  const indexMapping: IndexMapping[] = []
   
   for (const category of categories) {
     const items = validated[category] || []
@@ -88,7 +100,7 @@ function displayAllSuggestions(validated: any) {
     
     console.log(`\n${icon} ${name} (${items.length}):`)
     
-    items.forEach((item: any, localIndex: any) => {
+    items.forEach((item: SuggestionItem, localIndex: number) => {
       console.log(formatSuggestion(item, globalIndex, category))
       indexMapping.push({ globalIndex, category, localIndex })
       globalIndex++
@@ -103,7 +115,7 @@ function displayAllSuggestions(validated: any) {
 /**
  * 解析用户输入
  */
-function parseUserInput(input: any, totalCount: any) {
+function parseUserInput(input: string, totalCount: number): { type: string; indices?: number[] } {
   const trimmed = input.trim().toLowerCase()
   
   // 全接受
@@ -118,8 +130,8 @@ function parseUserInput(input: any, totalCount: any) {
   
   // 部分接受（数字列表）
   const numbers = input.split(',')
-    .map((s: any) => parseInt(s.trim()))
-    .filter((n: any) => !isNaN(n) && n >= 1 && n <= totalCount)
+    .map((s: string) => parseInt(s.trim()))
+    .filter((n: number) => !isNaN(n) && n >= 1 && n <= totalCount)
   
   if (numbers.length > 0) {
     return { type: 'partial', indices: numbers }
@@ -131,9 +143,9 @@ function parseUserInput(input: any, totalCount: any) {
 /**
  * 显示最终总结
  */
-function displayFinalSummary(result: any, validated: any) {
-  const totalSuggested = Object.values(validated).reduce((sum, arr) => sum + (arr as any).length, 0)
-  const totalAccepted = Object.values(result).reduce((sum, arr) => sum + (arr as any).length, 0)
+function displayFinalSummary(result: AISuggestions, validated: AISuggestions): void {
+  const totalSuggested = Object.values(validated).reduce((sum, arr) => sum + arr.length, 0)
+  const totalAccepted = Object.values(result).reduce((sum, arr) => sum + arr.length, 0)
   
   console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`)
   console.log(`\n📊 Final Summary:`)
@@ -142,7 +154,7 @@ function displayFinalSummary(result: any, validated: any) {
   console.log(`   ✅ Testability Adjustments: ${result.testabilityAdjustments.length}/${validated.testabilityAdjustments?.length || 0}`)
   console.log(`   Total: ${totalAccepted}/${totalSuggested} accepted\n`)
   
-  if ((totalAccepted as number) > 0) {
+  if (totalAccepted > 0) {
     console.log(`💡 These suggestions will be added to ai-test.config.jsonc`)
     console.log(`   and will take effect on next: ai-test scan`)
   }
@@ -155,7 +167,7 @@ function displayFinalSummary(result: any, validated: any) {
  * @param {Object} validated - 已验证的建议
  * @returns {Object|null} - 用户批准的建议，或 null（取消）
  */
-export async function interactiveReview(validated: any) {
+export async function interactiveReview(validated: AISuggestions): Promise<AISuggestions | null> {
   const rl = createInterface()
   
   try {
@@ -180,7 +192,7 @@ export async function interactiveReview(validated: any) {
     const parsed = parseUserInput(userInput, totalSuggestions)
     
     // 3. 处理用户选择
-    const result: any = {
+    const result: AISuggestions = {
       businessCriticalPaths: [],
       highRiskModules: [],
       testabilityAdjustments: []
@@ -211,7 +223,7 @@ export async function interactiveReview(validated: any) {
         }
       })
       
-      const totalAccepted = Object.values(result).reduce((sum, arr) => sum + (arr as any).length, 0)
+      const totalAccepted = Object.values(result).reduce((sum, arr) => sum + arr.length, 0)
       console.log(`\n✅ Accepted ${totalAccepted}/${totalSuggestions} suggestions`)
       
       if (totalAccepted === 0) {

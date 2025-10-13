@@ -3,7 +3,9 @@
  * AI 响应验证器
  */
 
-const SCHEMA = {
+import type { AISuggestions, SuggestionSchema, Validator } from '../types/ai-suggestions.js'
+
+const SCHEMA: Record<string, SuggestionSchema> = {
   businessCriticalPaths: {
     minConfidence: 0.85,
     maxCount: 10,
@@ -45,7 +47,7 @@ const SCHEMA = {
 /**
  * 验证单个建议
  */
-function validateSuggestion(item: any, schema: any) {
+function validateSuggestion(item: Record<string, any>, schema: SuggestionSchema): boolean {
   // 检查必需字段
   for (const field of schema.requiredFields) {
     if (!(field in item)) {
@@ -71,8 +73,8 @@ function validateSuggestion(item: any, schema: any) {
 /**
  * 验证并清洗 AI 响应
  */
-export function validateAndSanitize(parsed: any) {
-  const result: any = {
+export function validateAndSanitize(parsed: { suggestions?: any }): AISuggestions {
+  const result: AISuggestions = {
     businessCriticalPaths: [],
     highRiskModules: [],
     testabilityAdjustments: []
