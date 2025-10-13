@@ -74,7 +74,7 @@ export async function analyze(options: AnalyzeOptions): Promise<void> {
   
   // 5. 构建 AI Prompt
   console.log('✍️  Step 5: Building AI analysis prompt...')
-  const prompt = buildAnalysisPrompt(samples, stats, projectCtx)
+  const prompt = buildAnalysisPrompt(samples, stats, projectCtx as unknown as Record<string, string | string[]>)
   
   // 保存 prompt 到临时文件
   const promptPath = 'prompt_analyze.txt'
