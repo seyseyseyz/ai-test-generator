@@ -1,13 +1,16 @@
 #!/usr/bin/env node
-// @ts-nocheck
 
 import { writeFileSync } from 'node:fs'
 import { parseArgs } from '../shared/cli-utils.js'
 import { loadJson } from '../shared/file-utils.js'
 import { requirePackage } from '../shared/process-utils.js'
 import { relativizePath, normalizePath } from '../shared/path-utils.js'
+import type { FunctionTarget, FunctionType, Layer, AITestConfig } from '../types/index.js'
 
-async function listFiles(excludeDirs = []) {
+/**
+ * List TypeScript source files with exclusions
+ */
+async function listFiles(excludeDirs: string[] = []): Promise<string[]> {
   const fg = (await requirePackage('fast-glob', 'fast-glob')).default
   
   // 基础排除规则
@@ -28,15 +31,21 @@ async function listFiles(excludeDirs = []) {
   return files
 }
 
-function decideTypeByPathAndName(filePath, exportName) {
+/**
+ * Determine function type by path and name
+ */
+function decideTypeByPathAndName(filePath: string, exportName: string): FunctionType {
   const p = filePath.toLowerCase()
   if (p.includes('/hooks/') || /^use[A-Z]/.test(exportName)) return 'hook'
   if (p.includes('/components/') || /^[A-Z]/.test(exportName)) return 'component'
   return 'function'
 }
 
-function decideLayer(filePath, cfg) {
-  const layers = cfg?.layers
+/**
+ * Determine layer by file path and config
+ */
+function decideLayer(filePath: string, cfg: AITestConfig | null): Layer | 'unknown' {
+  const layers = (cfg as any)?.layers
   if (!layers) return 'unknown'
   
   // 标准化路径：移除反斜杠，去掉 src/ 前缀
@@ -47,7 +56,7 @@ function decideLayer(filePath, cfg) {
   
   // 按优先级匹配层级（从最具体到最通用）
   for (const [layerKey, layerDef] of Object.entries(layers)) {
-    const patterns = layerDef.patterns || []
+    const patterns = (layerDef as any).patterns || []
     for (const pattern of patterns) {
       // 简单的 glob 匹配：支持 ** 和 *
       const regexPattern = pattern
@@ -55,7 +64,7 @@ function decideLayer(filePath, cfg) {
         .replace(/\*/g, '[^/]*')
       const regex = new RegExp(regexPattern)
       if (regex.test(normalizedPath)) {
-        return layerKey
+        return layerKey as Layer
       }
     }
   }
@@ -63,45 +72,32 @@ function decideLayer(filePath, cfg) {
   return 'unknown'
 }
 
-function buildImpactHint(path) {
-  const lower = path.toLowerCase()
-  if (/(price|booking|soldout)/.test(lower)) return 'price/booking/soldout'
-  if (/(roomlist|filter)/.test(lower)) return 'roomlist/filter'
-  if (/login|order/.test(lower)) return 'login/order'
-  return 'display'
-}
+// Removed buildImpactHint and buildRoiHint - legacy functions
 
-function buildRoiHint(path, content) {
-  const isPure = !/fetch\(|xRouter|xStorage|xUbt|xEnv|xUa/.test(content)
-  const needsUI = /<\w+/.test(content)
-  return {
-    isPure: isPure && !needsUI,
-    dependenciesInjectable: /\(.*:.*\)/.test(content) && !needsUI,
-    needsUI,
-    multiPlatformStrong: /xEnv|xUa|\.h5\.|\.crn\./.test(path)
-  }
-}
-
-// Use shared relativizePath utility
-
-function getLoc(text, start, end) {
+/**
+ * Get lines of code between positions
+ */
+function getLoc(text: string, start: number, end: number): number {
   const slice = text.slice(start, end)
   return slice.split(/\r?\n/).length
 }
 
-async function extractTargets(files) {
+/**
+ * Extract testable targets from source files
+ */
+async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
   const { Project, SyntaxKind } = await requirePackage('ts-morph', 'ts-morph')
   const cfg = loadJson('ut_scoring_config.json') || {}
   const internalInclude = cfg.internalInclude === true
   const minLoc = cfg?.internalThresholds?.minLoc ?? 15
 
-  const project = new Project({ skipAddingFilesFromTsConfig: true })
+  const project = new (Project as any)({ skipAddingFilesFromTsConfig: true })
   files.forEach(f => project.addSourceFileAtPathIfExists(f))
 
-  const targets = []
+  const targets: FunctionTarget[] = []
   
   // 辅助函数：判断变量是否为可测试的函数/组件
-  function isTestableVariable(v) {
+  function isTestableVariable(v: any): boolean {
     const init = v?.getInitializer()
     if (!init) return false
     const kind = init.getKind()
@@ -115,19 +111,19 @@ async function extractTargets(files) {
   }
   
   // ✅ 文件级缓存：避免重复扫描每个文件的导入
-  const fileImportsCache = new Map()
+  const fileImportsCache = new Map<string, string[]>()
   
-  function getCachedFileImports(sf) {
+  function getCachedFileImports(sf: any): string[] {
     const filePath = sf.getFilePath()
     if (fileImportsCache.has(filePath)) {
-      return fileImportsCache.get(filePath)
+      return fileImportsCache.get(filePath) || []
     }
     
     const imports = sf.getImportDeclarations()
     const criticalKeywords = ['stripe', 'payment', 'auth', 'axios', 'fetch', 'prisma', 'db', 'api', 'jotai', 'zustand']
     const criticalImports = imports
-      .map(imp => imp.getModuleSpecifierValue())
-      .filter(mod => criticalKeywords.some(kw => mod.toLowerCase().includes(kw)))
+      .map((imp: any) => imp.getModuleSpecifierValue())
+      .filter((mod: string) => criticalKeywords.some(kw => mod.toLowerCase().includes(kw)))
       .slice(0, 5) // 限制数量
     
     fileImportsCache.set(filePath, criticalImports)
@@ -135,8 +131,8 @@ async function extractTargets(files) {
   }
   
   // ✅ 新增：提取函数的 AI 分析元数据
-  function extractMetadata(node, sf) {
-    const metadata = {
+  function extractMetadata(node: any, sf: any): any {
+    const metadata: any = {
       criticalImports: [],
       businessEntities: [],
       hasDocumentation: false,
@@ -163,14 +159,14 @@ async function extractTargets(files) {
           ['Payment', 'Order', 'Booking', 'User', 'Hotel', 'Room', 'Cart', 'Price', 'Guest', 'Request', 'Response']
         
         metadata.businessEntities = params
-          .map(p => {
+          .map((p: any) => {
             try {
               return p.getType().getText()
             } catch {
               return ''
             }
           })
-          .filter(type => entityKeywords.some(kw => type.includes(kw)))
+          .filter((type: string) => entityKeywords.some((kw: any) => type.includes(kw)))
           .slice(0, 3) // 限制数量
       }
       
@@ -189,7 +185,7 @@ async function extractTargets(files) {
         if (jsDocs.length > 0) {
           metadata.hasDocumentation = true
           metadata.documentation = jsDocs
-            .map(doc => {
+            .map((doc: any) => {
               const comment = doc.getComment()
               return typeof comment === 'string' ? comment : ''
             })
@@ -206,8 +202,8 @@ async function extractTargets(files) {
       
       // 6. 统计外部 API 调用
       if (node.getDescendantsOfKind) {
-        const callExpressions = node.getDescendantsOfKind(SyntaxKind.CallExpression)
-        metadata.externalCalls = callExpressions.filter(call => {
+        const callExpressions = node.getDescendantsOfKind((SyntaxKind as any).CallExpression)
+        metadata.externalCalls = callExpressions.filter((call: any) => {
           const expr = call.getExpression().getText()
           return /fetch|axios|\.get\(|\.post\(|\.put\(|\.delete\(/.test(expr)
         }).length
@@ -225,45 +221,43 @@ async function extractTargets(files) {
     const content = sf.getFullText()
 
     // 导出符号 - 仅包含函数和组件
-    const exported = Array.from(new Set(sf.getExportSymbols().map(s => s.getName()).filter(Boolean)))
+    const exported = Array.from(new Set(sf.getExportSymbols().map((s: any) => s.getName()).filter(Boolean)))
     const fileLoc = content.split('\n').length
     for (const name of exported) {
       // 检查是否为函数声明
-      const fn = sf.getFunction(name)
+      const fn = sf.getFunction(name as string)
       if (fn) {
-        const type = decideTypeByPathAndName(relPath, name)
-        const layer = decideLayer(relPath, cfg)
+        const type = decideTypeByPathAndName(relPath, name as string)
+        const layer = decideLayer(relPath, cfg) as Layer
         const metadata = extractMetadata(fn, sf) // ✅ 提取元数据
         targets.push({
-          name,
+          name: name as string,
           path: relPath,
           type,
           layer,
           internal: false,
           loc: fileLoc,
-          impactHint: buildImpactHint(relPath),
-          roiHint: buildRoiHint(relPath, content),
+          exported: true,
           metadata // ✅ 添加元数据
         })
         continue
       }
       
       // 检查是否为变量（可能是箭头函数或组件）
-          const v = sf.getVariableDeclaration(name)
+          const v = sf.getVariableDeclaration(name as string)
           if (v && isTestableVariable(v)) {
-            const type = decideTypeByPathAndName(relPath, name)
-            const layer = decideLayer(relPath, cfg)
+            const type = decideTypeByPathAndName(relPath, name as string)
+            const layer = decideLayer(relPath, cfg) as Layer
             const init = v.getInitializer()
             const metadata = extractMetadata(init, sf) // ✅ 提取元数据
             targets.push({
-              name,
+              name: name as string,
               path: relPath,
               type,
               layer,
               internal: false,
               loc: fileLoc,
-              impactHint: buildImpactHint(relPath),
-              roiHint: buildRoiHint(relPath, content),
+              exported: true,
               metadata // ✅ 添加元数据
             })
           }
@@ -272,15 +266,15 @@ async function extractTargets(files) {
 
     // 内部顶层命名函数（非导出）
     if (internalInclude) {
-      const fnDecls = sf.getFunctions().filter(fn => !fn.isExported() && !!fn.getName())
+      const fnDecls = sf.getFunctions().filter((fn: any) => !fn.isExported() && !!fn.getName())
       for (const fn of fnDecls) {
-        const name = fn.getName()
+        const name = fn.getName() as string
         const start = fn.getStart()
         const end = fn.getEnd()
         const loc = getLoc(content, start, end)
         if (loc < minLoc) continue
             const type = decideTypeByPathAndName(relPath, name)
-            const layer = decideLayer(relPath, cfg)
+            const layer = decideLayer(relPath, cfg) as Layer
             targets.push({
               name,
               path: relPath,
@@ -288,8 +282,7 @@ async function extractTargets(files) {
               layer,
               internal: true,
               loc,
-              impactHint: buildImpactHint(relPath),
-              roiHint: buildRoiHint(relPath, content)
+              exported: false
             })
       }
     }
@@ -298,13 +291,16 @@ async function extractTargets(files) {
   return targets
 }
 
-async function main() {
-  const args = parseArgs(process.argv)
+async function main(): Promise<void> {
+  const args = parseArgs()
   const cfg = loadJson('ut_scoring_config.json') || {}
   
   // 从配置文件和命令行参数获取排除目录
-  const configExcludes = cfg?.targetGeneration?.excludeDirs || []
-  const cliExcludes = args.exclude ? args.exclude.split(',').map(s => s.trim()) : []
+  const configExcludes = (cfg as any)?.targetGeneration?.excludeDirs || []
+  const excludeArg = args.exclude
+  const cliExcludes = (typeof excludeArg === 'string') 
+    ? excludeArg.split(',').map((s: string) => s.trim()) 
+    : []
   const allExcludes = [...configExcludes, ...cliExcludes]
   
   if (allExcludes.length > 0) {
@@ -314,7 +310,7 @@ async function main() {
   const files = await listFiles(allExcludes)
   const targets = await extractTargets(files)
   
-  const outPath = args.out || 'reports/targets.json'
+  const outPath = (typeof args.out === 'string' ? args.out : null) || 'reports/targets.json'
   writeFileSync(outPath, JSON.stringify(targets, null, 2))
   process.stdout.write(`Generated ${targets.length} targets -> ${outPath}\n`)
 }
