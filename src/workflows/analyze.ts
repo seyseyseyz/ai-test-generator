@@ -102,7 +102,7 @@ export async function analyze(options: AnalyzeOptions): Promise<void> {
     const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || 
                       responseText.match(/```\s*([\s\S]*?)\s*```/)
     
-    const jsonText = jsonMatch ? jsonMatch[1] : responseText
+    const jsonText = jsonMatch && jsonMatch[1] ? jsonMatch[1] : responseText
     parsed = JSON.parse(jsonText)
   } catch (err: unknown) {
     const error = err as Error
