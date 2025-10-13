@@ -4,7 +4,7 @@
 
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { detectConfig } from '../utils/config-manager.js'
 import type { ScanCommandOptions } from '../types/cli.js'

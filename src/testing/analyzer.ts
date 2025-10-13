@@ -4,7 +4,7 @@
  * 输出一个简要的提示文本，可注入下一轮 Prompt
  */
 
-import { readFileSync, existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 
 // ============================================================================
 // Type Definitions

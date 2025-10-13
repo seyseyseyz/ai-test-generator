@@ -2,7 +2,7 @@
  * AI 响应验证器
  */
 
-import type { AISuggestions, SuggestionSchema, BusinessCriticalPath, HighRiskModule, TestabilityAdjustment } from '../types/ai-suggestions.js'
+import type { AISuggestions, BusinessCriticalPath, HighRiskModule, SuggestionSchema, TestabilityAdjustment } from '../types/ai-suggestions.js'
 
 type ValidatorValue = string | number | string[] | unknown
 

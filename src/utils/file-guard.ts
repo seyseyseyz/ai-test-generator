@@ -10,7 +10,7 @@
  * Reference: Qodo Cover - Minimum Privilege Principle
  */
 
-import { basename, extname, dirname, resolve, relative } from 'node:path'
+import { basename, dirname, extname, relative, resolve } from 'node:path'
 
 // ============================================================================
 // Constants
@@ -221,9 +221,7 @@ export function getSafeTestPath(sourcePath: string): string {
   
   // 优先放在 __tests__ 目录
   const testsDir = `${dir}/__tests__`
-  const safePath = `${testsDir}/${testFileName}`
-  
-  return safePath
+  return `${testsDir}/${testFileName}`
 }
 
 // ============================================================================

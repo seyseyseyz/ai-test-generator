@@ -85,7 +85,9 @@ export async function analyzeProjectStructure() {
     try {
       const content = readFileSync(file, 'utf-8')
       totalLines += content.split('\n').length
-    } catch {}
+    } catch {
+      // Ignore file read errors
+    }
   }
   
   return {

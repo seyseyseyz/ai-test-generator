@@ -10,8 +10,7 @@
  * @module boundary-detector
  */
 
-import type { FunctionDeclaration, ArrowFunction, FunctionExpression } from 'ts-morph'
-import { SyntaxKind } from 'ts-morph'
+import { SyntaxKind, type ArrowFunction, type FunctionDeclaration, type FunctionExpression } from 'ts-morph'
 
 // ============================================================================
 // Type Definitions

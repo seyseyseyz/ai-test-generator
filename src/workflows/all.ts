@@ -3,7 +3,7 @@
  * 循环所有批次：每批 N 个，直到没有 TODO
  */
 
-import { readFileSync, existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'

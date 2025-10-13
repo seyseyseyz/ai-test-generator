@@ -2,7 +2,7 @@
 
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { GitSignals, AITestConfig } from '../types/index.js'
+import type { AITestConfig, GitSignals } from '../types/index.js'
 import { parseArgs, showError } from '../shared/cli-utils.js'
 import { loadJson, writeFile } from '../shared/file-utils.js'
 import { runCommand } from '../shared/process-utils.js'
@@ -141,7 +141,9 @@ function collectWithExec(files: string[], config: AITestConfig | null): Record<s
     let content = ''
     try { 
       content = readFileSync(join(process.cwd(), file), 'utf8') 
-    } catch {}
+    } catch {
+      // Ignore file read errors
+    }
     const multiPlatform = detectMultiPlatform(file, content)
     
     // P1-1: Renamed to inCategory

@@ -3,7 +3,7 @@
  * 单批次：生成 prompt → 调用 AI → 提取测试 → 运行 Jest → 自动标记状态
  */
 
-import { spawn, ChildProcess, StdioOptions } from 'node:child_process'
+import { ChildProcess, spawn, StdioOptions } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -254,7 +254,9 @@ async function main(argv: string[] = process.argv): Promise<void> {
           writeFileSyncLocal('reports/hints.txt', `# 上一轮失败修复建议\n- ${obj.hints.join('\n- ')}`)
           console.log(`💡 Saved ${obj.hints.length} hints for next run`)
         }
-      } catch {}
+      } catch {
+        // Ignore JSON parse errors
+      }
       resolve()
     })
     child.on('error', () => resolve())

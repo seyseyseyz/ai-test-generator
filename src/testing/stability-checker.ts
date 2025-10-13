@@ -11,7 +11,7 @@
  */
 
 import { spawn } from 'node:child_process'
-import { writeFileSync, existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 
 // ============================================================================
 // Constants

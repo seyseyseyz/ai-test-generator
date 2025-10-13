@@ -17,8 +17,8 @@
  * @module parallel-generate
  */
 
-import { spawn, ChildProcess, StdioOptions } from 'node:child_process'
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { ChildProcess, spawn, StdioOptions } from 'node:child_process'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import pLimit from 'p-limit'

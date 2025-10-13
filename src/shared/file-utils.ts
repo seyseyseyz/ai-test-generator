@@ -5,7 +5,7 @@
  * @packageDocumentation
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 
 /**
  * Strip comments from JSON string (JSONC support)

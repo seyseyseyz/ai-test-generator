@@ -4,10 +4,10 @@
  * 从评分报告中提取目标，构建包含源码上下文的 Prompt
  */
 
-import { readFileSync, existsSync } from 'node:fs';
-// @ts-ignore - template file may not have types
+import { existsSync, readFileSync } from 'node:fs';
+// @ts-expect-error - template file may not have types
 import { generateFewShotPrompt } from '../../templates/test-examples.js';
-import { Project, type SourceFile, type FunctionDeclaration } from 'ts-morph';
+import { type FunctionDeclaration, Project, type SourceFile } from 'ts-morph';
 import { detectBoundaries, formatBoundariesForPrompt } from '../core/boundary-detector.js';
 import { analyzeMockRequirements, formatMocksForPrompt } from '../core/mock-analyzer.js';
 import { classifyBehaviors, formatBehaviorsForPrompt } from '../core/behavior-classifier.js';
@@ -297,7 +297,7 @@ ${boundariesText}${mocksText}${behaviorsText}
 
 请严格按照以下顺序与格式输出：
 
-1) 先输出“测试文件清单（JSON Manifest）”——与上文格式一致，包含所有 \"path\"。
+1) 先输出"测试文件清单（JSON Manifest）"——与上文格式一致，包含所有 "path"。
 2) 然后依次输出每个测试文件的代码块：
 
 ### 测试文件: [文件路径]
@@ -351,7 +351,9 @@ export function runCLI(argv: string[] = process.argv): void {
       options.customInstructions = (options.customInstructions || '') + `\n${hint}`;
     } else if (arg === '--hints-file') {
       const p = args[++i] || '';
-      try { options.customInstructions = (options.customInstructions || '') + `\n${readFileSync(p, 'utf8')}` } catch {}
+      try { options.customInstructions = (options.customInstructions || '') + `\n${readFileSync(p, 'utf8')}` } catch {
+        // Ignore file read errors
+      }
     } else if (arg === '--only-paths') {
       const csv = args[++i] || '';
       filter.onlyPaths = csv.split(',').map(s => s.trim()).filter(Boolean);

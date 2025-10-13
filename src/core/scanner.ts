@@ -4,8 +4,9 @@ import { writeFileSync } from 'node:fs'
 import { parseArgs } from '../shared/cli-utils.js'
 import { loadJson } from '../shared/file-utils.js'
 import { requirePackage } from '../shared/process-utils.js'
-import { relativizePath, normalizePath } from '../shared/path-utils.js'
-import type { FunctionTarget, FunctionType, Layer, AITestConfig } from '../types/index.js'
+import { normalizePath, relativizePath } from '../shared/path-utils.js'
+import type { AITestConfig, FunctionTarget, FunctionType, Layer } from '../types/index.js'
+import type { VariableDeclaration } from 'ts-morph'
 
 /**
  * List TypeScript source files with exclusions
@@ -190,7 +191,9 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
           const returnType = node.getReturnType().getText()
           // 简化类型（避免过长）
           metadata.returnType = returnType.length > 100 ? returnType.slice(0, 100) + '...' : returnType
-        } catch {}
+        } catch {
+          // Ignore type extraction errors
+        }
       }
       
       // 4. 提取 JSDoc 注释
@@ -266,7 +269,7 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
           if (v && isTestableVariable(v)) {
             const type = decideTypeByPathAndName(relPath, name as string)
             const layer = decideLayer(relPath, cfg) as Layer
-            const metadata = extractMetadata(v as any, sf) // ✅ 提取元数据
+            const metadata = extractMetadata(v as VariableDeclaration, sf) // ✅ 提取元数据
             targets.push({
               name: name as string,
               path: relPath,

@@ -5,7 +5,7 @@
  * @packageDocumentation
  */
 
-import { join, resolve, relative, dirname, basename, extname } from 'node:path'
+import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 
 /**
  * Normalize path separators to forward slashes

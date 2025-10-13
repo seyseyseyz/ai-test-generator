@@ -4,7 +4,7 @@
 
 import { spawn } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { iterativeImprove } from './iterative-improve.js'
 import type { GenerateOptions } from '../types/cli.js'

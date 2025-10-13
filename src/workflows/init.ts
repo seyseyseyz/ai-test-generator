@@ -2,8 +2,8 @@
  * Init 工作流：初始化配置文件
  */
 
-import { existsSync, copyFileSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { copyFileSync, existsSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { InitOptions } from '../types/cli.js'
 

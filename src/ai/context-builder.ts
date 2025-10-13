@@ -3,7 +3,7 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs'
-import type { ProjectContext, FrameworkInfo, Dependencies } from '../types/project-context.js'
+import type { Dependencies, FrameworkInfo, ProjectContext } from '../types/project-context.js'
 
 /**
  * 构建项目上下文信息

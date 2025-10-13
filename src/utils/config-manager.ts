@@ -2,8 +2,8 @@
  * 配置文件管理工具
  */
 
-import { existsSync, readFileSync, writeFileSync, copyFileSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { AITestConfig } from '../types/index.js'
 
@@ -84,7 +84,7 @@ export function writeConfig(configPath: string, config: AITestConfig): void {
  * 检查配置是否已经 AI 分析过
  */
 export function isAnalyzed(config: AITestConfig): boolean {
-  return (config as any)?.aiEnhancement?.analyzed === true
+  return config?.aiEnhancement?.analyzed === true
 }
 
 /**

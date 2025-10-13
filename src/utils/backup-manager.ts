@@ -10,8 +10,8 @@
  * Reference: Qodo Cover - Auto Backup System
  */
 
-import { existsSync, mkdirSync, copyFileSync, writeFileSync, readdirSync, statSync, unlinkSync } from 'node:fs'
-import { join, dirname, basename } from 'node:path'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { basename, dirname, join } from 'node:path'
 import { createHash } from 'node:crypto'
 
 // ============================================================================
@@ -48,7 +48,7 @@ export interface BackupResultFailure {
   backed: false
   reason: string
   backupPath: null
-  error?: any
+  error?: Error
 }
 
 /** Backup result (union type) */
@@ -183,7 +183,7 @@ export function backupFile(filePath: string): BackupResult {
       backed: false,
       reason: `Backup failed: ${message}`,
       backupPath: null,
-      error
+      error: error instanceof Error ? error : new Error(String(error))
     }
   }
 }

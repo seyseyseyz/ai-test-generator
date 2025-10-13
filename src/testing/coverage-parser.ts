@@ -11,7 +11,7 @@
  * @module coverage-parser
  */
 
-import { readFileSync, existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 // ============================================================================
@@ -80,34 +80,41 @@ export async function parseCoberturaXml(xmlPath: string): Promise<CoverageData> 
   // 动态导入 xml2js（避免必须依赖）
   let parseStringPromise: (xml: string) => Promise<unknown>
   try {
-    // @ts-ignore - xml2js may not have types
+    // @ts-expect-error - xml2js may not have types
     const xml2js = await import('xml2js')
     parseStringPromise = xml2js.parseStringPromise
   } catch (error) {
     throw new Error('xml2js not installed. Run: npm install xml2js')
   }
   
-  const result = await parseStringPromise(xml) as Record<string, any>
+  const result = await parseStringPromise(xml) as Record<string, unknown>
+  
+  const coverageRoot = result.coverage as Record<string, unknown>
+  const coverageAttrs = (coverageRoot.$ || {}) as Record<string, string>
   
   const coverage: CoverageData = {
     format: 'cobertura',
-    lineRate: parseFloat(result.coverage.$['line-rate'] || '0'),
-    branchRate: parseFloat(result.coverage.$['branch-rate'] || '0'),
-    linesCovered: parseInt(result.coverage.$['lines-covered'] || '0'),
-    linesValid: parseInt(result.coverage.$['lines-valid'] || '0'),
+    lineRate: parseFloat(coverageAttrs['line-rate'] || '0'),
+    branchRate: parseFloat(coverageAttrs['branch-rate'] || '0'),
+    linesCovered: parseInt(coverageAttrs['lines-covered'] || '0'),
+    linesValid: parseInt(coverageAttrs['lines-valid'] || '0'),
     uncoveredLines: [],
     filesCoverage: {}
   }
   
   // 解析每个包（package）
-  const packages = result.coverage.packages?.[0]?.package || []
+  const packagesArray = (coverageRoot.packages as Record<string, unknown>[] | undefined)?.[0]
+  const packages = ((packagesArray as Record<string, unknown>)?.package || []) as Record<string, unknown>[]
   
   for (const pkg of packages) {
-    const classes = pkg.classes?.[0]?.class || []
+    const classesArray = (pkg.classes as Record<string, unknown>[] | undefined)?.[0]
+    const classes = ((classesArray as Record<string, unknown>)?.class || []) as Record<string, unknown>[]
     
     for (const cls of classes) {
-      const filename: string = cls.$.filename
-      const lines = cls.lines?.[0]?.line || []
+      const clsAttrs = (cls.$ || {}) as Record<string, string>
+      const filename: string = clsAttrs.filename || ''
+      const linesArray = (cls.lines as Record<string, unknown>[] | undefined)?.[0]
+      const lines = ((linesArray as Record<string, unknown>)?.line || []) as Record<string, unknown>[]
       
       const fileCoverage: InternalFileCoverage = {
         totalLines: lines.length,
@@ -119,13 +126,14 @@ export async function parseCoberturaXml(xmlPath: string): Promise<CoverageData> 
       }
       
       for (const line of lines) {
-        const lineNumber = parseInt(line.$.number || '0')
-        const hits = parseInt(line.$.hits || '0')
-        const isBranch = line.$.branch === 'true'
+        const lineAttrs = (line.$ || {}) as Record<string, string>
+        const lineNumber = parseInt(lineAttrs.number || '0')
+        const hits = parseInt(lineAttrs.hits || '0')
+        const isBranch = lineAttrs.branch === 'true'
         
         if (isBranch && fileCoverage.branchPoints !== undefined) {
           fileCoverage.branchPoints++
-          const branchRate = line.$['condition-coverage']
+          const branchRate = lineAttrs['condition-coverage']
           if (branchRate && branchRate.includes('100%') && fileCoverage.coveredBranches !== undefined) {
             fileCoverage.coveredBranches++
           }
@@ -174,7 +182,7 @@ export function parseJestCoverageJson(jsonPath: string): CoverageData {
     throw new Error(`Coverage JSON not found: ${jsonPath}`)
   }
   
-  const coverageData: Record<string, any> = JSON.parse(readFileSync(jsonPath, 'utf-8'))
+  const coverageData: Record<string, unknown> = JSON.parse(readFileSync(jsonPath, 'utf-8'))
   
   const coverage: CoverageData = {
     format: 'jest-json',
@@ -188,9 +196,10 @@ export function parseJestCoverageJson(jsonPath: string): CoverageData {
   let totalLines = 0
   let coveredLines = 0
   
-  for (const [filePath, fileData] of Object.entries(coverageData)) {
-    const statementMap = fileData.statementMap || {}
-    const s = fileData.s || {}  // statement execution counts
+  for (const [filePath, fileDataRaw] of Object.entries(coverageData)) {
+    const fileData = fileDataRaw as Record<string, unknown>
+    const statementMap = (fileData.statementMap || {}) as Record<string, unknown>
+    const s = (fileData.s || {}) as Record<string, number>  // statement execution counts
     
     const uncoveredLines: number[] = []
     let fileTotal = 0
@@ -200,7 +209,7 @@ export function parseJestCoverageJson(jsonPath: string): CoverageData {
       fileTotal++
       
       if (count === 0) {
-        const stmt = statementMap[stmtId]
+        const stmt = statementMap[stmtId] as { start?: { line?: number } } | undefined
         const lineNumber = stmt?.start?.line || 0
         
         uncoveredLines.push(lineNumber)
@@ -217,15 +226,17 @@ export function parseJestCoverageJson(jsonPath: string): CoverageData {
     totalLines += fileTotal
     coveredLines += fileCovered
     
+    const b = fileData.b as Record<string, number[]> | undefined
+    
     coverage.filesCoverage[filePath] = {
       totalLines: fileTotal,
       coveredLines: fileCovered,
       uncoveredLines: [...new Set(uncoveredLines)].sort((a, b) => a - b),
       coverage: fileTotal > 0 ? fileCovered / fileTotal : 0,
-      statements: fileData.s || {},
-      branches: fileData.b || {},
-      functions: fileData.f || {},
-      branchCoverage: fileData.b ? calculateBranchCoverage(fileData.b) : 0
+      statements: fileData.s as Record<string, number> || {},
+      branches: fileData.b as Record<string, number[]> || {},
+      functions: fileData.f as Record<string, number> || {},
+      branchCoverage: b ? calculateBranchCoverage(b) : 0
     }
   }
   

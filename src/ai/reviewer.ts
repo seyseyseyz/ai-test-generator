@@ -4,7 +4,7 @@
  */
 
 import readline from 'readline'
-import type { CategoryKey, SuggestionItem, AISuggestions } from '../types/ai-suggestions.js'
+import type { AISuggestions, CategoryKey, SuggestionItem } from '../types/ai-suggestions.js'
 
 interface ReadlineInterface {
   question(query: string, callback: (answer: string) => void): void

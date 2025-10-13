@@ -3,7 +3,7 @@
  * 批量标记 ut_scores.md 中的完成状态
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import type { TestStatusMarker } from '../types/utils.js'
 
 /**

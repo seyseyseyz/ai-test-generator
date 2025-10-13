@@ -2,7 +2,7 @@
  * 扫描结果管理工具
  */
 
-import { existsSync, statSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 // ============================================================================

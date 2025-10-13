@@ -10,7 +10,7 @@
  * Reference: Qodo Cover (CodiumAI) - Actions Log System
  */
 
-import { existsSync, mkdirSync, appendFileSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 // ============================================================================

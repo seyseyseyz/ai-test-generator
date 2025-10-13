@@ -4,9 +4,9 @@
  */
 
 import { spawn } from 'node:child_process'
-import { writeFileSync, readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { detectConfig } from '../utils/config-manager.js'
-import { sampleCodeFiles, analyzeProjectStructure } from '../ai/sampler.js'
+import { analyzeProjectStructure, sampleCodeFiles } from '../ai/sampler.js'
 import { buildProjectContext } from '../ai/context-builder.js'
 import { buildAnalysisPrompt } from '../ai/analyzer-prompt.js'
 import { validateAndSanitize } from '../ai/validator.js'

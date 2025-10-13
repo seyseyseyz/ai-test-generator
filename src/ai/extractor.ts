@@ -3,7 +3,7 @@
  * 从 AI 回复中提取测试文件并自动创建
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 interface ExtractOptions {
@@ -44,7 +44,9 @@ export function extractTests(content: string, options: ExtractOptions = {}): Ext
         manifest = obj;
         break;
       }
-    } catch {}
+    } catch {
+      // Invalid JSON, try next match
+    }
   }
   const manifestPaths = manifest?.files?.map((f: { path: string }) => String(f.path).trim()) ?? [];
 

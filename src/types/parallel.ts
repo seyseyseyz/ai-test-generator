@@ -3,7 +3,7 @@
  * @packageDocumentation
  */
 
-import type { ScoredFunction, GenerationResult, IterationTelemetry } from './index.js'
+import type { GenerationResult, IterationTelemetry, ScoredFunction } from './index.js'
 import type { QualityEvaluation } from './quality.js'
 
 // ============================================================================

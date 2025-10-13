@@ -6,7 +6,7 @@
  * - 将回复写入到输出文件
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { spawn } from 'node:child_process'
 
@@ -73,7 +73,9 @@ export async function runOnce({ prompt, promptFile, out = 'reports/ai_response.t
     child.on('close', code => {
       clearTimeout(to)
       const outText = Buffer.concat(chunks).toString('utf8')
-      try { mkdirSync(dirname(out), { recursive: true }); writeFileSync(out, outText) } catch {}
+      try { mkdirSync(dirname(out), { recursive: true }); writeFileSync(out, outText) } catch {
+        // Ignore write errors
+      }
       if (code !== 0) return reject(new Error(`cursor-agent exited with code ${code}`))
       resolve({ out, bytes: outText.length })
     })

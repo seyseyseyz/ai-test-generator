@@ -17,8 +17,7 @@
  * @module mock-analyzer
  */
 
-import type { FunctionDeclaration, ArrowFunction, FunctionExpression, CallExpression, SourceFile } from 'ts-morph'
-import { SyntaxKind } from 'ts-morph'
+import { SyntaxKind, type ArrowFunction, type CallExpression, type FunctionDeclaration, type FunctionExpression, type SourceFile } from 'ts-morph'
 
 // ============================================================================
 // Type Definitions
@@ -86,11 +85,9 @@ export function analyzeMockRequirements(functionNode: FunctionNode): MockRequire
   }
   
   // 3. 去重（按 type + mockStrategy）
-  const uniqueMocks = Array.from(
+  return Array.from(
     new Map(mocks.map(m => [`${m.type}:${m.mockStrategy}`, m])).values()
   )
-  
-  return uniqueMocks
 }
 
 // ============================================================================
