@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Behavior 分类系统（Qodo Cover 风格）
  * 
@@ -16,7 +15,75 @@
  * @module behavior-classifier
  */
 
+import type { FunctionDeclaration, ArrowFunction, FunctionExpression } from 'ts-morph'
 import { SyntaxKind } from 'ts-morph'
+
+// ============================================================================
+// Type Definitions
+// ============================================================================
+
+/** Behavior category definition */
+export interface BehaviorCategory {
+  id: string
+  name: string
+  emoji: string
+  description: string
+  priority: number
+  color: string
+}
+
+/** Test case specification for behavior */
+export interface BehaviorTestCase {
+  scenario: string
+  inputs?: Array<{ name: string; value: string }>
+  expectedOutcome: string
+  importance?: string
+}
+
+/** Behavior classification result */
+export interface Behavior {
+  category: BehaviorCategory
+  description: string
+  testCase: BehaviorTestCase
+  reasoning: string
+  exampleTest: string
+}
+
+/** Classification options */
+export interface ClassifyOptions {
+  includeExamples?: boolean
+  verbosity?: 'minimal' | 'normal' | 'verbose'
+}
+
+/** Behavior statistics */
+export interface BehaviorStats {
+  total: number
+  byCategory: Record<string, number>
+  byImportance: {
+    critical: number
+    important: number
+    optional: number
+  }
+}
+
+/** Test plan */
+export interface TestPlan {
+  totalTests: number
+  estimatedTime: string
+  coverage: {
+    happyPath: number
+    edgeCases: number
+    errorPaths: number
+  }
+  recommendations: string[]
+}
+
+/** Function node type from ts-morph */
+type FunctionNode = FunctionDeclaration | ArrowFunction | FunctionExpression
+
+// ============================================================================
+// Constants
+// ============================================================================
 
 /**
  * Behavior 类别定义
@@ -29,7 +96,7 @@ export const BEHAVIOR_CATEGORIES = {
     description: '理想和预期的用例 - 一切正常工作的场景',
     priority: 1,
     color: '#22c55e'
-  },
+  } as BehaviorCategory,
   EDGE_CASE: {
     id: 'edge-case',
     name: 'Edge Case',
@@ -37,7 +104,7 @@ export const BEHAVIOR_CATEGORIES = {
     description: '异常或极端的场景 - 边界条件和特殊情况',
     priority: 2,
     color: '#f59e0b'
-  },
+  } as BehaviorCategory,
   ERROR_PATH: {
     id: 'error-path',
     name: 'Error Path',
@@ -45,17 +112,24 @@ export const BEHAVIOR_CATEGORIES = {
     description: '异常和错误处理 - 失败场景和错误恢复',
     priority: 3,
     color: '#ef4444'
-  }
-}
+  } as BehaviorCategory
+} as const
+
+// ============================================================================
+// Main Classification Function
+// ============================================================================
 
 /**
  * 分类函数的 Behavior
- * @param {import('ts-morph').FunctionDeclaration} functionNode - ts-morph 函数节点
- * @param {Object} options - 分类选项
- * @returns {Array<Object>} Behavior 列表
+ * @param functionNode - ts-morph 函数节点
+ * @param options - 分类选项
+ * @returns Behavior 列表
  */
-export function classifyBehaviors(functionNode, options = {}) {
-  const behaviors = []
+export function classifyBehaviors(
+  functionNode: FunctionNode,
+  _options: ClassifyOptions = {}
+): Behavior[] {
+  const behaviors: Behavior[] = []
   
   try {
     // 1. Happy Path（总是有的）
@@ -73,17 +147,32 @@ export function classifyBehaviors(functionNode, options = {}) {
     behaviors.push(...errorPaths)
     
   } catch (error) {
-    console.error(`⚠️  Behavior classification failed: ${error.message}`)
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(`⚠️  Behavior classification failed: ${message}`)
   }
   
   return behaviors
 }
 
+// ============================================================================
+// Happy Path Detection
+// ============================================================================
+
+/**
+ * 获取函数名称（兼容所有函数节点类型）
+ */
+function getFunctionName(functionNode: FunctionNode): string {
+  if ('getName' in functionNode && typeof functionNode.getName === 'function') {
+    return functionNode.getName() || 'anonymous'
+  }
+  return 'anonymous'
+}
+
 /**
  * 检测 Happy Path
  */
-function detectHappyPath(functionNode) {
-  const functionName = functionNode.getName()
+function detectHappyPath(functionNode: FunctionNode): Behavior | null {
+  const functionName = getFunctionName(functionNode)
   const params = functionNode.getParameters()
   
   // 构建 Happy Path 描述
@@ -117,12 +206,16 @@ function detectHappyPath(functionNode) {
   }
 }
 
+// ============================================================================
+// Edge Cases Detection
+// ============================================================================
+
 /**
  * 检测 Edge Cases
  */
-function detectEdgeCases(functionNode) {
-  const edgeCases = []
-  const functionName = functionNode.getName()
+function detectEdgeCases(functionNode: FunctionNode): Behavior[] {
+  const edgeCases: Behavior[] = []
+  const functionName = getFunctionName(functionNode)
   const params = functionNode.getParameters()
   
   // 1. 空值/null/undefined 参数
@@ -198,64 +291,57 @@ it('should handle empty inputs', () => {
       description: `处理数值边界（0, 负数, Infinity, NaN）`,
       testCase: {
         scenario: 'numeric-boundaries',
-        inputs: ['0', '-1', 'Infinity', '-Infinity', 'NaN'],
-        expectedOutcome: 'valid-results-or-error'
+        expectedOutcome: 'handle-special-values'
       },
-      reasoning: '数值边界是常见的 bug 来源',
+      reasoning: '数值特殊值常导致边界错误',
       exampleTest: `
-it('should handle numeric edge cases', () => {
+it('should handle numeric boundaries', () => {
   expect(${functionName}(0)).toBeDefined()
   expect(${functionName}(-1)).toBeDefined()
   expect(${functionName}(Infinity)).toBeDefined()
+  expect(${functionName}(NaN)).toBeDefined()
 })
       `.trim()
     })
   }
   
-  // 4. 条件分支边界
-  const ifStatements = functionNode.getDescendantsOfKind(SyntaxKind.IfStatement)
-  if (ifStatements.length > 0) {
+  // 4. 大数据集
+  if (hasArrayParams) {
     edgeCases.push({
       category: BEHAVIOR_CATEGORIES.EDGE_CASE,
-      description: `测试条件分支的边界值`,
+      description: `处理大数据集（性能测试）`,
       testCase: {
-        scenario: 'conditional-boundaries',
-        expectedOutcome: 'both-branches-covered'
+        scenario: 'large-dataset',
+        expectedOutcome: 'performant-handling'
       },
-      reasoning: `函数包含 ${ifStatements.length} 个条件分支`,
+      reasoning: '确保大数据集不会导致性能问题',
       exampleTest: `
-it('should cover conditional branches', () => {
-  // Test boundary values that trigger different branches
-  // Example: if (value > 10) { ... } else { ... }
-  expect(${functionName}(10)).toBeDefined() // boundary
-  expect(${functionName}(11)).toBeDefined() // just above
+it('should handle large datasets efficiently', () => {
+  const largeArray = Array(10000).fill(0).map((_, i) => i)
+  const startTime = Date.now()
+  ${functionName}(largeArray)
+  const duration = Date.now() - startTime
+  expect(duration).toBeLessThan(1000) // Should complete within 1s
 })
       `.trim()
     })
   }
   
-  // 5. 循环边界（空、单个、多个）
-  const loops = [
-    ...functionNode.getDescendantsOfKind(SyntaxKind.ForStatement),
-    ...functionNode.getDescendantsOfKind(SyntaxKind.WhileStatement),
-    ...functionNode.getDescendantsOfKind(SyntaxKind.ForOfStatement)
-  ]
-  
-  if (loops.length > 0) {
+  // 5. 特殊字符（字符串参数）
+  if (hasStringParams) {
     edgeCases.push({
       category: BEHAVIOR_CATEGORIES.EDGE_CASE,
-      description: `测试循环边界（零次、单次、多次迭代）`,
+      description: `处理特殊字符和 Unicode`,
       testCase: {
-        scenario: 'loop-boundaries',
-        inputs: ['empty collection', 'single item', 'multiple items'],
-        expectedOutcome: 'correct-iteration-behavior'
+        scenario: 'special-characters',
+        expectedOutcome: 'proper-encoding'
       },
-      reasoning: `函数包含 ${loops.length} 个循环`,
+      reasoning: '特殊字符可能导致编码问题',
       exampleTest: `
-it('should handle different loop iterations', () => {
-  expect(${functionName}([])).toBeDefined() // zero iterations
-  expect(${functionName}([1])).toBeDefined() // single iteration
-  expect(${functionName}([1, 2, 3])).toBeDefined() // multiple
+it('should handle special characters', () => {
+  expect(${functionName}('!@#$%^&*()')).toBeDefined()
+  expect(${functionName}('你好世界')).toBeDefined()
+  expect(${functionName}('emoji: 🚀')).toBeDefined()
 })
       `.trim()
     })
@@ -264,249 +350,223 @@ it('should handle different loop iterations', () => {
   return edgeCases
 }
 
+// ============================================================================
+// Error Paths Detection
+// ============================================================================
+
 /**
  * 检测 Error Paths
  */
-function detectErrorPaths(functionNode) {
-  const errorPaths = []
-  const functionName = functionNode.getName()
+function detectErrorPaths(functionNode: FunctionNode): Behavior[] {
+  const errorPaths: Behavior[] = []
+  const functionName = getFunctionName(functionNode)
   
-  // 1. Try-Catch 错误处理
-  const tryStatements = functionNode.getDescendantsOfKind(SyntaxKind.TryStatement)
-  if (tryStatements.length > 0) {
-    errorPaths.push({
-      category: BEHAVIOR_CATEGORIES.ERROR_PATH,
-      description: `测试错误处理和恢复`,
-      testCase: {
-        scenario: 'error-handling',
-        expectedOutcome: 'graceful-error-handling'
-      },
-      reasoning: `函数包含 ${tryStatements.length} 个 try-catch 块`,
-      exampleTest: `
-it('should handle errors gracefully', () => {
-  // Trigger error condition
+  try {
+    // 1. 检测 throw 语句
+    const throwStatements = functionNode.getDescendantsOfKind(SyntaxKind.ThrowStatement)
+    if (throwStatements.length > 0) {
+      errorPaths.push({
+        category: BEHAVIOR_CATEGORIES.ERROR_PATH,
+        description: `验证错误抛出机制`,
+        testCase: {
+          scenario: 'error-throwing',
+          expectedOutcome: 'throw-appropriate-error'
+        },
+        reasoning: `函数包含 ${throwStatements.length} 个 throw 语句`,
+        exampleTest: `
+it('should throw errors for invalid inputs', () => {
   expect(() => ${functionName}(invalidInput)).toThrow()
-  // Or: expect(${functionName}(invalidInput)).rejects.toThrow()
 })
-      `.trim()
-    })
-  }
-  
-  // 2. Throw 语句
-  const throwStatements = functionNode.getDescendantsOfKind(SyntaxKind.ThrowStatement)
-  if (throwStatements.length > 0) {
-    errorPaths.push({
-      category: BEHAVIOR_CATEGORIES.ERROR_PATH,
-      description: `测试抛出的异常`,
-      testCase: {
-        scenario: 'exception-throwing',
-        expectedOutcome: 'correct-error-thrown'
-      },
-      reasoning: `函数包含 ${throwStatements.length} 个 throw 语句`,
-      exampleTest: `
-it('should throw appropriate errors', () => {
-  expect(() => ${functionName}(invalidData))
-    .toThrow('Expected error message')
+        `.trim()
+      })
+    }
+    
+    // 2. 检测 try-catch 块
+    const tryCatchBlocks = functionNode.getDescendantsOfKind(SyntaxKind.TryStatement)
+    if (tryCatchBlocks.length > 0) {
+      errorPaths.push({
+        category: BEHAVIOR_CATEGORIES.ERROR_PATH,
+        description: `测试错误处理和恢复`,
+        testCase: {
+          scenario: 'error-recovery',
+          expectedOutcome: 'graceful-error-handling'
+        },
+        reasoning: `函数包含 ${tryCatchBlocks.length} 个 try-catch 块`,
+        exampleTest: `
+it('should handle and recover from errors', () => {
+  // Test that errors are caught and handled gracefully
+  expect(() => ${functionName}(errorProneInput)).not.toThrow()
 })
-      `.trim()
-    })
-  }
-  
-  // 3. 异步函数的拒绝（Promise reject）
-  const isAsync = functionNode.isAsync()
-  if (isAsync) {
-    errorPaths.push({
-      category: BEHAVIOR_CATEGORIES.ERROR_PATH,
-      description: `测试异步操作失败`,
-      testCase: {
-        scenario: 'async-rejection',
-        expectedOutcome: 'promise-rejection-handled'
-      },
-      reasoning: '异步函数需要测试失败场景',
-      exampleTest: `
-it('should handle async failures', async () => {
-  await expect(${functionName}(invalidInput))
-    .rejects.toThrow()
+        `.trim()
+      })
+    }
+    
+    // 3. 检测类型验证（TypeScript guards）
+    const typeGuards = functionNode.getDescendantsOfKind(SyntaxKind.TypeOfExpression)
+    if (typeGuards.length > 0) {
+      errorPaths.push({
+        category: BEHAVIOR_CATEGORIES.ERROR_PATH,
+        description: `测试类型验证逻辑`,
+        testCase: {
+          scenario: 'type-validation',
+          expectedOutcome: 'reject-invalid-types'
+        },
+        reasoning: '函数包含类型检查逻辑',
+        exampleTest: `
+it('should validate input types', () => {
+  expect(() => ${functionName}('wrong type')).toThrow(TypeError)
 })
-      `.trim()
+        `.trim()
+      })
+    }
+    
+    // 4. 检测条件验证（if checks）
+    const ifStatements = functionNode.getDescendantsOfKind(SyntaxKind.IfStatement)
+    const validationChecks = ifStatements.filter(stmt => {
+      const condition = stmt.getExpression().getText()
+      return condition.includes('!') || condition.includes('===') || condition.includes('!==')
     })
-  }
-  
-  // 4. 验证失败
-  if (functionName.includes('validate') || functionName.includes('check')) {
-    errorPaths.push({
-      category: BEHAVIOR_CATEGORIES.ERROR_PATH,
-      description: `测试验证失败场景`,
-      testCase: {
-        scenario: 'validation-failure',
-        inputs: ['invalid data', 'missing required fields'],
-        expectedOutcome: 'validation-error'
-      },
-      reasoning: '验证函数必须测试失败场景',
-      exampleTest: `
-it('should reject invalid inputs', () => {
-  expect(${functionName}(invalidData)).toEqual({
-    valid: false,
-    errors: expect.arrayContaining([expect.any(String)])
-  })
+    
+    if (validationChecks.length > 2) {
+      errorPaths.push({
+        category: BEHAVIOR_CATEGORIES.ERROR_PATH,
+        description: `测试输入验证逻辑`,
+        testCase: {
+          scenario: 'input-validation',
+          expectedOutcome: 'reject-invalid-inputs'
+        },
+        reasoning: `函数包含 ${validationChecks.length} 个验证检查`,
+        exampleTest: `
+it('should validate all input conditions', () => {
+  // Test each validation check
+  expect(${functionName}(invalidCase1)).toMatch(/error|invalid|fail/)
 })
-      `.trim()
-    })
-  }
-  
-  // 5. 外部依赖失败（HTTP, DB, etc.）
-  const hasExternalCalls = functionNode.getDescendantsOfKind(SyntaxKind.CallExpression)
-    .some(call => {
-      const expr = call.getExpression().getText()
-      return /fetch|axios|\.get\(|\.post\(|\.query\(|\.find\(/.test(expr)
-    })
-  
-  if (hasExternalCalls) {
-    errorPaths.push({
-      category: BEHAVIOR_CATEGORIES.ERROR_PATH,
-      description: `测试外部依赖失败`,
-      testCase: {
-        scenario: 'external-failure',
-        expectedOutcome: 'error-handling-or-retry'
-      },
-      reasoning: '外部依赖可能失败，需要测试错误处理',
-      exampleTest: `
-it('should handle external service failures', async () => {
-  // Mock external service to fail
-  mockService.get.mockRejectedValue(new Error('Service unavailable'))
-  
-  await expect(${functionName}()).rejects.toThrow('Service unavailable')
-  // Or test retry logic, fallback, etc.
+        `.trim()
+      })
+    }
+    
+    // 5. 检测异步错误
+    const awaitExpressions = functionNode.getDescendantsOfKind(SyntaxKind.AwaitExpression)
+    if (awaitExpressions.length > 0) {
+      errorPaths.push({
+        category: BEHAVIOR_CATEGORIES.ERROR_PATH,
+        description: `测试异步错误处理`,
+        testCase: {
+          scenario: 'async-errors',
+          expectedOutcome: 'handle-promise-rejection'
+        },
+        reasoning: '函数包含异步操作',
+        exampleTest: `
+it('should handle async errors', async () => {
+  await expect(${functionName}(failingAsync)).rejects.toThrow()
 })
-      `.trim()
-    })
+        `.trim()
+      })
+    }
+    
+  } catch (error) {
+    // Skip if AST analysis fails
   }
   
   return errorPaths
 }
 
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
 /**
- * 生成 Happy Path 测试示例
+ * 生成 Happy Path 示例测试
  */
-function generateHappyPathExample(functionName, params) {
-  const paramList = params.map(p => {
-    const name = p.getName()
-    const type = p.getType().getText()
-    
-    // 根据类型生成合理的测试值
-    if (type.includes('string')) return `'validString'`
-    if (type.includes('number')) return `42`
-    if (type.includes('boolean')) return `true`
-    if (type.includes('[]') || type.includes('Array')) return `[1, 2, 3]`
-    if (type.includes('object') || type === '{}') return `{ key: 'value' }`
-    return `validInput`
-  }).join(', ')
+function generateHappyPathExample(functionName: string, params: any[]): string {
+  const paramList = params.map(p => p.getName()).join(', ')
+  const hasParams = params.length > 0
   
   return `
-it('should work correctly with valid inputs (Happy Path)', () => {
-  const result = ${functionName}(${paramList})
-  
+it('should work correctly with valid inputs', () => {
+  ${hasParams ? `const result = ${functionName}(${paramList})` : `const result = ${functionName}()`}
   expect(result).toBeDefined()
-  expect(result).not.toBeNull()
-  // Add specific assertions based on expected behavior
+  // Add specific assertions based on expected return value
 })
   `.trim()
 }
 
 /**
  * 格式化 Behaviors 为 Prompt 文本
- * @param {Array} behaviors - Behavior 列表
- * @returns {string} 格式化的文本
  */
-export function formatBehaviorsForPrompt(behaviors) {
+export function formatBehaviorsForPrompt(behaviors: Behavior[]): string {
   if (behaviors.length === 0) {
-    return '- No specific behaviors identified\n'
+    return '- No behaviors detected\n'
   }
   
-  let text = '**Test Behaviors** (Qodo Cover style):\n\n'
+  let text = ''
   
   // 按类别分组
-  const byCategory = {
-    [BEHAVIOR_CATEGORIES.HAPPY_PATH.id]: [],
-    [BEHAVIOR_CATEGORIES.EDGE_CASE.id]: [],
-    [BEHAVIOR_CATEGORIES.ERROR_PATH.id]: []
-  }
-  
+  const byCategory: Partial<Record<string, Behavior[]>> = {}
   for (const behavior of behaviors) {
-    byCategory[behavior.category.id].push(behavior)
+    const categoryId = behavior.category.id
+    if (!byCategory[categoryId]) byCategory[categoryId] = []
+    byCategory[categoryId]!.push(behavior)
   }
   
   // Happy Path
-  if (byCategory['happy-path'].length > 0) {
-    text += `### ${BEHAVIOR_CATEGORIES.HAPPY_PATH.emoji} ${BEHAVIOR_CATEGORIES.HAPPY_PATH.name}\n`
-    text += `*${BEHAVIOR_CATEGORIES.HAPPY_PATH.description}*\n\n`
-    
+  if (byCategory['happy-path']) {
+    text += `**${BEHAVIOR_CATEGORIES.HAPPY_PATH.emoji} ${BEHAVIOR_CATEGORIES.HAPPY_PATH.name}**:\n`
     for (const b of byCategory['happy-path']) {
-      text += `- **${b.description}**\n`
-      text += `  - Scenario: ${b.testCase.scenario}\n`
-      text += `  - Expected: ${b.testCase.expectedOutcome}\n`
+      text += `- ${b.description}\n`
+      text += `  Reasoning: ${b.reasoning}\n`
     }
     text += '\n'
   }
   
   // Edge Cases
-  if (byCategory['edge-case'].length > 0) {
-    text += `### ${BEHAVIOR_CATEGORIES.EDGE_CASE.emoji} ${BEHAVIOR_CATEGORIES.EDGE_CASE.name}\n`
-    text += `*${BEHAVIOR_CATEGORIES.EDGE_CASE.description}*\n\n`
-    
+  if (byCategory['edge-case']) {
+    text += `**${BEHAVIOR_CATEGORIES.EDGE_CASE.emoji} ${BEHAVIOR_CATEGORIES.EDGE_CASE.name}**:\n`
     for (const b of byCategory['edge-case']) {
-      text += `- **${b.description}**\n`
-      text += `  - ${b.reasoning}\n`
+      text += `- ${b.description}\n`
     }
     text += '\n'
   }
   
   // Error Paths
-  if (byCategory['error-path'].length > 0) {
-    text += `### ${BEHAVIOR_CATEGORIES.ERROR_PATH.emoji} ${BEHAVIOR_CATEGORIES.ERROR_PATH.name}\n`
-    text += `*${BEHAVIOR_CATEGORIES.ERROR_PATH.description}*\n\n`
-    
+  if (byCategory['error-path']) {
+    text += `**${BEHAVIOR_CATEGORIES.ERROR_PATH.emoji} ${BEHAVIOR_CATEGORIES.ERROR_PATH.name}**:\n`
     for (const b of byCategory['error-path']) {
-      text += `- **${b.description}**\n`
-      text += `  - ${b.reasoning}\n`
+      text += `- ${b.description}\n`
     }
     text += '\n'
   }
-  
-  text += `**Testing Priority**: Happy Path (critical) → Edge Cases (important) → Error Paths (complete coverage)\n`
   
   return text
 }
 
 /**
  * 获取 Behavior 统计信息
- * @param {Array} behaviors - Behavior 列表
- * @returns {Object} 统计信息
  */
-export function getBehaviorStats(behaviors) {
-  const stats = {
+export function getBehaviorStats(behaviors: Behavior[]): BehaviorStats {
+  const stats: BehaviorStats = {
     total: behaviors.length,
-    byCategory: {
-      'happy-path': 0,
-      'edge-case': 0,
-      'error-path': 0
-    },
-    hasTryCatch: false,
-    hasAsyncErrors: false,
-    hasValidation: false
+    byCategory: {},
+    byImportance: {
+      critical: 0,
+      important: 0,
+      optional: 0
+    }
   }
   
   for (const behavior of behaviors) {
-    stats.byCategory[behavior.category.id]++
+    // 按类别统计
+    const categoryId = behavior.category.id
+    stats.byCategory[categoryId] = (stats.byCategory[categoryId] || 0) + 1
     
-    if (behavior.testCase?.scenario === 'error-handling') {
-      stats.hasTryCatch = true
-    }
-    if (behavior.testCase?.scenario === 'async-rejection') {
-      stats.hasAsyncErrors = true
-    }
-    if (behavior.testCase?.scenario === 'validation-failure') {
-      stats.hasValidation = true
+    // 按重要性统计
+    const importance = behavior.testCase.importance
+    if (importance === 'critical') {
+      stats.byImportance.critical++
+    } else if (importance === 'important') {
+      stats.byImportance.important++
+    } else {
+      stats.byImportance.optional++
     }
   }
   
@@ -515,34 +575,46 @@ export function getBehaviorStats(behaviors) {
 
 /**
  * 生成测试计划
- * @param {Array} behaviors - Behavior 列表
- * @returns {Object} 测试计划
  */
-export function generateTestPlan(behaviors) {
-  const plan = {
-    totalTests: behaviors.length,
-    criticalTests: [],
-    importantTests: [],
-    optionalTests: []
+export function generateTestPlan(behaviors: Behavior[]): TestPlan {
+  const stats = getBehaviorStats(behaviors)
+  
+  const happyPathCount = stats.byCategory['happy-path'] || 0
+  const edgeCaseCount = stats.byCategory['edge-case'] || 0
+  const errorPathCount = stats.byCategory['error-path'] || 0
+  
+  const totalTests = behaviors.length
+  const estimatedMinutes = totalTests * 3 // 每个测试估计3分钟
+  const estimatedTime = estimatedMinutes < 60
+    ? `${estimatedMinutes} 分钟`
+    : `${Math.ceil(estimatedMinutes / 60)} 小时`
+  
+  const recommendations: string[] = []
+  
+  if (happyPathCount === 0) {
+    recommendations.push('⚠️  缺少 Happy Path 测试 - 建议添加基础功能测试')
   }
   
-  for (const behavior of behaviors) {
-    const testItem = {
-      description: behavior.description,
-      category: behavior.category.name,
-      scenario: behavior.testCase?.scenario,
-      example: behavior.exampleTest
-    }
-    
-    if (behavior.category.id === 'happy-path') {
-      plan.criticalTests.push(testItem)
-    } else if (behavior.category.id === 'edge-case') {
-      plan.importantTests.push(testItem)
-    } else if (behavior.category.id === 'error-path') {
-      plan.optionalTests.push(testItem)
-    }
+  if (edgeCaseCount === 0) {
+    recommendations.push('⚠️  缺少 Edge Case 测试 - 建议添加边界条件测试')
   }
   
-  return plan
+  if (errorPathCount === 0) {
+    recommendations.push('💡 建议添加错误处理测试')
+  }
+  
+  if (totalTests < 3) {
+    recommendations.push('💡 测试覆盖较少 - 建议增加更多测试场景')
+  }
+  
+  return {
+    totalTests,
+    estimatedTime,
+    coverage: {
+      happyPath: happyPathCount,
+      edgeCases: edgeCaseCount,
+      errorPaths: errorPathCount
+    },
+    recommendations
+  }
 }
-

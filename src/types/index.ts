@@ -167,37 +167,8 @@ export interface MockAnalysis {
 // Behavior Classification Types
 // ============================================================================
 
-/**
- * Test behavior category
- */
-export interface BehaviorCategory {
-  id: 'happy-path' | 'edge-case' | 'error-path'
-  name: string
-  emoji: string
-}
-
-/**
- * Classified behavior for testing
- */
-export interface Behavior {
-  category: BehaviorCategory
-  description: string
-  reasoning?: string
-  testCase?: {
-    scenario: string
-    expectedOutcome: string
-  }
-  exampleTest?: string
-}
-
-/**
- * Behavior classification result
- */
-export interface BehaviorAnalysis {
-  functionName: string
-  behaviors: Behavior[]
-  count: number
-}
+// Behavior types moved to core/behavior-classifier.ts (more complete definitions)
+// Re-export them from core module instead
 
 // ============================================================================
 // Coverage Types
@@ -258,7 +229,7 @@ export interface PromptContext {
   dependencies?: string
   boundaries?: BoundaryAnalysis
   mocks?: MockAnalysis
-  behaviors?: BehaviorAnalysis
+  behaviors?: any  // BehaviorAnalysis removed - use Behavior[] from core/behavior-classifier.ts
   coverage?: CoverageData
   examples?: string
 }

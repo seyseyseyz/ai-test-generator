@@ -480,7 +480,7 @@ export function formatBoundariesForPrompt(boundaries: BoundaryValue[]): string {
   
   let text = ''
   
-  // 按类别分组 (使用 Partial + Record 来简化类型)
+  // 按类别分组
   const byCategory: Partial<Record<BoundaryValue['category'], BoundaryValue[]>> = {}
   for (const boundary of boundaries) {
     const category = boundary.category
