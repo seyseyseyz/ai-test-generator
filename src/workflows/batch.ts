@@ -3,7 +3,7 @@
  * 单批次：生成 prompt → 调用 AI → 提取测试 → 运行 Jest → 自动标记状态
  */
 
-import { spawn } from 'node:child_process'
+import { spawn, ChildProcess, StdioOptions } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -12,19 +12,40 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const pkgRoot = join(__dirname, '../..')
 
-function sh(cmd: string, args: any[] = [], options: any = {}): Promise<any> {
+/**
+ * Shell命令运行选项接口
+ */
+interface ShellOptions {
+  captureStdout?: boolean
+  cwd?: string
+  env?: Record<string, string>
+}
+
+/**
+ * 覆盖率汇总接口
+ */
+interface CoverageSummary {
+  total?: {
+    lines?: { pct?: number }
+    statements?: { pct?: number }
+    functions?: { pct?: number }
+    branches?: { pct?: number }
+  }
+}
+
+function sh(cmd: string, args: string[] = [], options: ShellOptions = {}): Promise<string | null> {
   return new Promise((resolve, reject) => {
-    const stdio = (options as any).captureStdout ? ['inherit', 'pipe', 'inherit'] : 'inherit'
-    const child = spawn(cmd, args, { stdio: stdio as any, cwd: process.cwd() }) as any
+    const stdio: StdioOptions = options.captureStdout ? ['inherit', 'pipe', 'inherit'] : 'inherit'
+    const child: ChildProcess = spawn(cmd, args, { stdio, cwd: options.cwd || process.cwd() })
     
     const chunks: Buffer[] = []
-    if ((options as any).captureStdout) {
+    if (options.captureStdout && child.stdout) {
       child.stdout.on('data', (d: Buffer) => chunks.push(Buffer.from(d)))
     }
     
-    child.on('close', (code: number) => {
+    child.on('close', (code: number | null) => {
       if (code === 0) {
-        const output = (options as any).captureStdout ? Buffer.concat(chunks).toString('utf8') : null
+        const output = options.captureStdout ? Buffer.concat(chunks).toString('utf8') : null
         resolve(output)
       } else {
         reject(new Error(`${cmd} exited ${code}`))
@@ -34,21 +55,31 @@ function sh(cmd: string, args: any[] = [], options: any = {}): Promise<any> {
   })
 }
 
-function readCoverageSummary(): any {
+function readCoverageSummary(): CoverageSummary | null {
   const path = 'coverage/coverage-summary.json'
   if (!existsSync(path)) return null
-  try { return JSON.parse(readFileSync(path, 'utf8')) } catch { return null }
+  try { return JSON.parse(readFileSync(path, 'utf8')) as CoverageSummary } catch { return null }
 }
 
-function getCoveragePercent(summary: any): number {
+function getCoveragePercent(summary: CoverageSummary | null): number {
   if (!summary || !summary.total) return 0
   return summary.total.lines?.pct ?? 0
 }
 
 /**
+ * TODO函数信息接口
+ */
+interface TodoFunction {
+  name: string
+  path: string
+  score: number
+  priority: string
+}
+
+/**
  * 从报告中读取 TODO 函数列表
  */
-function readTodoFunctions(reportPath: string, priority: any, limit: number) {
+function readTodoFunctions(reportPath: string, priority: string | null, limit: number): TodoFunction[] {
   if (!existsSync(reportPath)) {
     throw new Error(`Report not found: ${reportPath}`)
   }
@@ -56,7 +87,7 @@ function readTodoFunctions(reportPath: string, priority: any, limit: number) {
   const content = readFileSync(reportPath, 'utf-8')
   const lines = content.split('\n')
   
-  const todoFunctions = []
+  const todoFunctions: TodoFunction[] = []
   for (const line of lines) {
     if (!line.includes('| TODO |')) continue
     
@@ -108,7 +139,7 @@ function markFunctionsDone(reportPath: string, functionNames: string[]) {
   writeFileSync(reportPath, content, 'utf-8')
 }
 
-async function main(argv: any = process.argv) {
+async function main(argv: string[] = process.argv): Promise<void> {
   const args = argv.slice(2)
   const priority = args[0] && args[0] !== 'undefined' ? args[0] : null
   const limit = Number(args[1] || 10)
@@ -150,8 +181,9 @@ async function main(argv: any = process.argv) {
   let promptText: string
   try {
     promptText = await sh('node', promptArgs, { captureStdout: true }) as string
-  } catch (err: any) {
-    console.error('❌ Failed to generate prompt:', err.message)
+  } catch (err: unknown) {
+    const error = err as Error
+    console.error('❌ Failed to generate prompt:', error?.message || String(err))
     return
   }
   
@@ -210,9 +242,11 @@ async function main(argv: any = process.argv) {
   const { spawn: spawnLocal } = await import('child_process')
   const { writeFileSync: writeFileSyncLocal } = await import('fs')
   await new Promise<void>((resolve) => {
-    const child: any = spawnLocal('node', [join(pkgRoot, 'lib/testing/analyzer.mjs')], { stdio: ['inherit','pipe','inherit'] })
+    const child: ChildProcess = spawnLocal('node', [join(pkgRoot, 'lib/testing/analyzer.mjs')], { stdio: ['inherit','pipe','inherit'] })
     const chunks: Buffer[] = []
-    child.stdout.on('data', (d: Buffer) => chunks.push(d))
+    if (child.stdout) {
+      child.stdout.on('data', (d: Buffer) => chunks.push(d))
+    }
     child.on('close', () => {
       try {
         const obj = JSON.parse(Buffer.concat(chunks).toString('utf8'))
