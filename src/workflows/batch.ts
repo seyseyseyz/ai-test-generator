@@ -3,23 +3,14 @@
  * 单批次：生成 prompt → 调用 AI → 提取测试 → 运行 Jest → 自动标记状态
  */
 
-import { ChildProcess, spawn, StdioOptions } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { spawnCommand } from '../shared/process-utils.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const pkgRoot = join(__dirname, '../..')
-
-/**
- * Shell命令运行选项接口
- */
-interface ShellOptions {
-  captureStdout?: boolean
-  cwd?: string
-  env?: Record<string, string>
-}
 
 /**
  * 覆盖率汇总接口
@@ -31,28 +22,6 @@ interface CoverageSummary {
     functions?: { pct?: number }
     branches?: { pct?: number }
   }
-}
-
-function sh(cmd: string, args: string[] = [], options: ShellOptions = {}): Promise<string | null> {
-  return new Promise((resolve, reject) => {
-    const stdio: StdioOptions = options.captureStdout ? ['inherit', 'pipe', 'inherit'] : 'inherit'
-    const child: ChildProcess = spawn(cmd, args, { stdio, cwd: options.cwd || process.cwd() })
-    
-    const chunks: Buffer[] = []
-    if (options.captureStdout && child.stdout) {
-      child.stdout.on('data', (d: Buffer) => chunks.push(Buffer.from(d)))
-    }
-    
-    child.on('close', (code: number | null) => {
-      if (code === 0) {
-        const output = options.captureStdout ? Buffer.concat(chunks).toString('utf8') : null
-        resolve(output)
-      } else {
-        reject(new Error(`${cmd} exited ${code}`))
-      }
-    })
-    child.on('error', reject)
-  })
 }
 
 function readCoverageSummary(): CoverageSummary | null {
@@ -178,25 +147,25 @@ async function main(argv: string[] = process.argv): Promise<void> {
   promptArgs.push('--skip', String(skip))
   promptArgs.push('--only-todo') // 新增：只处理 TODO 状态
   
-  let promptText: string
-  try {
-    promptText = await sh('node', promptArgs, { captureStdout: true }) as string
-  } catch (err: unknown) {
-    const error = err as Error
-    console.error('❌ Failed to generate prompt:', error?.message || String(err))
-    return
-  }
+    let promptText: string
+    try {
+      promptText = (await spawnCommand('node', promptArgs, { captureStdout: true })) as string
+    } catch (err: unknown) {
+      const error = err as Error
+      console.error('❌ Failed to generate prompt:', error?.message || String(err))
+      return
+    }
   
   // 写入 prompt.txt
   writeFileSync('prompt.txt', promptText)
 
   // 2) 调用 AI
   console.log('\n🤖 Calling AI...')
-  await sh('node', [join(pkgRoot, 'lib/ai/client.mjs'), 'prompt.txt'], { captureStdout: true })
+  await spawnCommand('node', [join(pkgRoot, 'lib/ai/client.mjs'), 'prompt.txt'], { captureStdout: true })
 
   // 3) 提取测试
   console.log('\n📦 Extracting tests...')
-  await sh('node', [join(pkgRoot, 'lib/ai/extractor.mjs'), 'reports/ai_response.txt', '--overwrite'])
+  await spawnCommand('node', [join(pkgRoot, 'lib/ai/extractor.mjs'), 'reports/ai_response.txt', '--overwrite'])
 
   // 4) 运行 Jest（按优先级自适应重跑）
   console.log('\n🧪 Running tests...')
@@ -205,7 +174,7 @@ async function main(argv: string[] = process.argv): Promise<void> {
   
   for (let i = 0; i < Math.max(1, reruns + 1); i++) {
     try {
-      await sh('node', [join(pkgRoot, 'lib/testing/runner.mjs')])
+      await spawnCommand('node', [join(pkgRoot, 'lib/testing/runner.mjs')])
       testsPassed = true
       break
     } catch {
@@ -239,10 +208,10 @@ async function main(argv: string[] = process.argv): Promise<void> {
 
   // 7) 失败分析并落盘 hints（用于下次重试）
   console.log('\n🔍 Analyzing failures...')
-  const { spawn: spawnLocal } = await import('child_process')
-  const { writeFileSync: writeFileSyncLocal } = await import('fs')
+  const { spawn: spawnLocal } = await import('node:child_process')
+  const { writeFileSync: writeFileSyncLocal } = await import('node:fs')
   await new Promise<void>((resolve) => {
-    const child: ChildProcess = spawnLocal('node', [join(pkgRoot, 'lib/testing/analyzer.mjs')], { stdio: ['inherit','pipe','inherit'] })
+    const child = spawnLocal('node', [join(pkgRoot, 'lib/testing/analyzer.mjs')], { stdio: ['inherit','pipe','inherit'] })
     const chunks: Buffer[] = []
     if (child.stdout) {
       child.stdout.on('data', (d: Buffer) => chunks.push(d))

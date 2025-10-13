@@ -9,10 +9,10 @@
  * 4. 重复直到：达到质量标准 OR 达到最大迭代次数
  */
 
-import { ChildProcess, spawn, StdioOptions } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { spawnCommand } from '../shared/process-utils.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -30,44 +30,6 @@ const QUALITY_STANDARDS = {
   temperature: 0.4,         // Meta 发现: 0.4 比 0.0 成功率高 25% (Table 4)
   samplesPerIteration: 1    // 每次迭代生成的样本数（可扩展为 N-sample）
 } as const
-
-/**
- * Shell执行选项
- */
-interface ShellOptions {
-  captureStdout?: boolean
-  cwd?: string
-  env?: Record<string, string>
-}
-
-/**
- * 执行命令
- */
-function sh(cmd: string, args: string[], options: ShellOptions = {}): Promise<string | null> {
-  return new Promise((resolve, reject) => {
-    const stdio: StdioOptions = options.captureStdout ? ['inherit', 'pipe', 'inherit'] : 'inherit'
-    const child: ChildProcess = spawn(cmd, args, { 
-      stdio, 
-      cwd: options.cwd || process.cwd(),
-      env: options.env || process.env as Record<string, string>
-    })
-    
-    const chunks: Buffer[] = []
-    if (options.captureStdout && child.stdout) {
-      child.stdout.on('data', (d: Buffer) => chunks.push(Buffer.from(d)))
-    }
-    
-    child.on('close', (code: number | null) => {
-      if (code === 0) {
-        const output = options.captureStdout ? Buffer.concat(chunks).toString('utf8') : null
-        resolve(output)
-      } else {
-        reject(new Error(`${cmd} exited ${code}`))
-      }
-    })
-    child.on('error', reject)
-  })
-}
 
 /**
  * Jest 覆盖率摘要接口
@@ -151,7 +113,7 @@ async function evaluateQuality(beforeCov: number, iteration: number): Promise<Qu
   // 1. 检查是否构建成功 (Build Filter)
   const buildStart = Date.now()
   try {
-    await sh('npx', ['tsc', '--noEmit'])
+    await spawnCommand('npx', ['tsc', '--noEmit'])
     quality.buildSuccess = true
     quality.telemetry.buildTimeMs = Date.now() - buildStart
   } catch {
@@ -163,7 +125,7 @@ async function evaluateQuality(beforeCov: number, iteration: number): Promise<Qu
   // 2. 检查测试是否通过 (Run Filter)
   const testStart = Date.now()
   try {
-    await sh('npx', ['jest', '--passWithNoTests'])
+    await spawnCommand('npx', ['jest', '--passWithNoTests'])
     quality.testPass = true
     quality.telemetry.testTimeMs = Date.now() - testStart
   } catch {
@@ -335,7 +297,7 @@ export async function iterativeImprove(options: IterativeImproveOptions = {}): P
           console.log(`\n   🎲 Sample ${sampleIdx + 1}/${samplesPerIteration}...`)
           
           // 生成候选测试
-          await sh('node', [
+          await spawnCommand('node', [
             join(PKG_ROOT, 'lib/workflows/batch.mjs'),
             'null', // priority (as string for CLI arg)
             '10', // limit
@@ -348,8 +310,8 @@ export async function iterativeImprove(options: IterativeImproveOptions = {}): P
           
           // 保存候选结果到临时目录
           const candidateDir = `reports/candidates/iter${iteration}_sample${sampleIdx}`
-          await sh('mkdir', ['-p', candidateDir], {})
-          await sh('cp', ['-r', 'coverage', `${candidateDir}/`], {}).catch(() => {})
+          await spawnCommand('mkdir', ['-p', candidateDir], {})
+          await spawnCommand('cp', ['-r', 'coverage', `${candidateDir}/`], {}).catch(() => {})
           
           candidates.push({
             sampleIdx,
@@ -375,12 +337,12 @@ export async function iterativeImprove(options: IterativeImproveOptions = {}): P
         
         // 恢复最佳候选的覆盖率数据
         const bestCandidateDir = `reports/candidates/iter${iteration}_sample${bestCandidate.sampleIdx}`
-        await sh('cp', ['-r', `${bestCandidateDir}/coverage`, '.'], {}).catch(() => {})
+        await spawnCommand('cp', ['-r', `${bestCandidateDir}/coverage`, '.'], {}).catch(() => {})
         
         quality = bestCandidate.quality
       } else {
         // 单样本模式（原有逻辑）
-        await sh('node', [
+        await spawnCommand('node', [
           join(PKG_ROOT, 'lib/workflows/batch.mjs'),
           'null', // priority
           '10', // limit
