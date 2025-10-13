@@ -40,7 +40,10 @@ function readCoverageSummary(): any {
   try { return JSON.parse(readFileSync(path, 'utf8')) } catch { return null }
 }
 
-// Removed unused function
+function getCoveragePercent(summary: any): number {
+  if (!summary || !summary.total) return 0
+  return summary.total.lines?.pct ?? 0
+}
 
 /**
  * 从报告中读取 TODO 函数列表
@@ -206,10 +209,10 @@ async function main(argv: any = process.argv) {
   console.log('\n🔍 Analyzing failures...')
   const { spawn: spawnLocal } = await import('child_process')
   const { writeFileSync: writeFileSyncLocal } = await import('fs')
-  await new Promise((resolve) => {
-    const child = spawnLocal('node', [join(pkgRoot, 'lib/testing/analyzer.mjs')], { stdio: ['inherit','pipe','inherit'] })
-    const chunks = []
-    child.stdout.on('data', d => chunks.push(Buffer.from(d)))
+  await new Promise<void>((resolve) => {
+    const child: any = spawnLocal('node', [join(pkgRoot, 'lib/testing/analyzer.mjs')], { stdio: ['inherit','pipe','inherit'] })
+    const chunks: Buffer[] = []
+    child.stdout.on('data', (d: Buffer) => chunks.push(d))
     child.on('close', () => {
       try {
         const obj = JSON.parse(Buffer.concat(chunks).toString('utf8'))
@@ -220,6 +223,7 @@ async function main(argv: any = process.argv) {
       } catch {}
       resolve()
     })
+    child.on('error', () => resolve())
   })
 
   console.log('\n✅ Batch completed!')

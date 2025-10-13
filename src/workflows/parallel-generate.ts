@@ -154,7 +154,8 @@ function groupIntoBatches(functions: any[], options: any = {}): any[] {
   if (currentBatch.length > 0) {
     if (finalBatches.length > 0 && currentBatch.length < minBatchSize) {
       // 合并到最后一个批次
-      finalBatches[finalBatches.length - 1].push(...currentBatch)
+      const lastBatch = finalBatches[finalBatches.length - 1]
+      if (lastBatch) lastBatch.push(...currentBatch)
     } else {
       finalBatches.push(currentBatch)
     }
@@ -184,9 +185,9 @@ async function generateBatch(batch: any[], batchIndex: number, options: any = {}
   const result = {
     batchIndex,
     total: batch.length,
-    success: [],
-    failed: [],
-    error: null
+    success: [] as string[],
+    failed: [] as string[],
+    error: null as any
   }
   
   try {
@@ -226,32 +227,33 @@ async function generateBatch(batch: any[], batchIndex: number, options: any = {}
       join(PKG_ROOT, 'lib/ai/client.mjs'),
       '--prompt', promptPath,
       '--out', aiResponsePath
-    ])
+    ], { captureStdout: false, cwd: process.cwd(), env: {} })
     
     // 3. 提取测试
     await sh('node', [
       join(PKG_ROOT, 'lib/ai/extractor.mjs'),
       aiResponsePath,
       '--overwrite'
-    ])
+    ], { captureStdout: false, cwd: process.cwd(), env: {} })
     
     // 4. 运行 Jest（只针对这个批次的测试文件）
-    const testFiles = [...new Set(batch.map(f => f.path.replace(/\.(ts|tsx|js|jsx)$/i, m => `.test${m}`)))]
+    const testFiles = [...new Set(batch.map((f: any) => (f.path || '').replace(/\.(ts|tsx|js|jsx)$/i, (m: string) => `.test${m}`)))]
     
     try {
-      await sh('npm', ['test', '--', ...testFiles])
-      result.success = batch.map(f => f.name)
+      await sh('npm', ['test', '--', ...testFiles], { captureStdout: false, cwd: process.cwd(), env: {} })
+      result.success = batch.map((f: any) => f.name) as string[]
       console.log(`✅ [Batch ${batchIndex + 1}] All tests passed`)
-    } catch (err) {
+    } catch (err: any) {
       // 即使测试失败也继续（会在后续分析中处理）
       console.warn(`⚠️  [Batch ${batchIndex + 1}] Some tests failed`)
-      result.failed = batch.map(f => f.name)
+      result.failed = batch.map((f: any) => f.name) as string[]
     }
     
-  } catch (err) {
-    console.error(`❌ [Batch ${batchIndex + 1}] Failed:`, err.message)
-    result.error = err.message
-    result.failed = batch.map(f => f.name)
+  } catch (err: any) {
+    const error = err as Error
+    console.error(`❌ [Batch ${batchIndex + 1}] Failed:`, error?.message || String(err))
+    result.error = error?.message || String(err)
+    result.failed = batch.map((f: any) => f.name) as string[]
   }
   
   return result
@@ -260,16 +262,18 @@ async function generateBatch(batch: any[], batchIndex: number, options: any = {}
 /**
  * 标记函数状态
  */
-function updateFunctionStatus(reportPath, functionNames, status) {
+function updateFunctionStatus(reportPath: string, functionNames: string[], status: string): void {
   if (!existsSync(reportPath)) return
   
   let content = readFileSync(reportPath, 'utf-8')
   
   for (const name of functionNames) {
+    if (!name) continue
     const lines = content.split('\n')
     for (let i = 0; i < lines.length; i++) {
-      if (lines[i].includes(`| ${name} |`) && lines[i].includes('| TODO |')) {
-        lines[i] = lines[i].replace('| TODO |', `| ${status} |`)
+      const line = lines[i]
+      if (line?.includes(`| ${name} |`) && line.includes('| TODO |')) {
+        lines[i] = line.replace('| TODO |', `| ${status} |`)
       }
     }
     content = lines.join('\n')
@@ -305,7 +309,7 @@ export async function parallelGenerate(options: any = {}): Promise<void> {
   
   if (todoFunctions.length === 0) {
     console.log('✅ No TODO functions found')
-    return { total: 0, success: 0, failed: 0, batches: [] }
+    return
   }
   
   console.log(`   Found ${todoFunctions.length} TODO functions\n`)
@@ -364,7 +368,7 @@ export async function parallelGenerate(options: any = {}): Promise<void> {
     allFailed.push(...result.failed)
   }
   
-  summary.throughput = (summary.total / parseFloat(duration)).toFixed(2)
+  summary.throughput = parseFloat((summary.total / parseFloat(duration)).toFixed(2))
   
   console.log(`Total functions: ${summary.total}`)
   console.log(`✅ Success: ${summary.success}`)
@@ -401,8 +405,6 @@ export async function parallelGenerate(options: any = {}): Promise<void> {
   console.log(`\n💾 Detailed report saved: ${reportJson}`)
   
   console.log('\n🎉 Parallel generation completed!')
-  
-  return summary
 }
 
 /**
@@ -411,7 +413,14 @@ export async function parallelGenerate(options: any = {}): Promise<void> {
 async function main(argv = process.argv) {
   const args = argv.slice(2)
   
-  const options = {
+  interface MainOptions {
+    reportPath?: string
+    priority?: string | null
+    count?: number | null
+    concurrency?: number
+  }
+  
+  const options: MainOptions = {
     reportPath: 'reports/ut_scores.md',
     priority: null,
     count: null,
@@ -421,28 +430,30 @@ async function main(argv = process.argv) {
   // 解析参数
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '-p' || args[i] === '--priority') {
-      options.priority = args[++i]
+      options.priority = args[++i] || null
     } else if (args[i] === '-n' || args[i] === '--count') {
-      options.count = parseInt(args[++i])
+      options.count = parseInt(args[++i] || '10')
     } else if (args[i] === '-c' || args[i] === '--concurrency') {
-      options.concurrency = Math.min(parseInt(args[++i]), CONCURRENCY_CONFIG.maxConcurrency)
+      options.concurrency = Math.min(parseInt(args[++i] || '3'), CONCURRENCY_CONFIG.maxConcurrency)
     } else if (args[i] === '--report') {
-      options.reportPath = args[++i]
+      options.reportPath = args[++i] || 'reports/ut_scores.md'
     }
   }
   
   try {
     await parallelGenerate(options)
-  } catch (err) {
-    console.error('❌ Parallel generation failed:', err.message)
+  } catch (err: any) {
+    const error = err as Error
+    console.error('❌ Parallel generation failed:', error?.message || String(err))
     process.exit(1)
   }
 }
 
 // 如果直接运行此文件
 if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch(err => {
-    console.error('❌ Fatal error:', err.message)
+  main().catch((err: any) => {
+    const error = err as Error
+    console.error('❌ Fatal error:', error?.message || String(err))
     process.exit(1)
   })
 }
