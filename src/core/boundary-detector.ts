@@ -19,14 +19,14 @@ import { SyntaxKind } from 'ts-morph'
 
 /** Test value with label */
 export interface TestValue {
-  value: any
+  value: unknown
   label: string
 }
 
 /** Test case for condition boundaries */
 export interface TestCase {
-  [variable: string]: any
-  expected?: boolean | any
+  [variable: string]: unknown
+  expected?: boolean | unknown
   description: string
 }
 

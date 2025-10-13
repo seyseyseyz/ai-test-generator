@@ -15,7 +15,7 @@
  * @module behavior-classifier
  */
 
-import type { FunctionDeclaration, ArrowFunction, FunctionExpression } from 'ts-morph'
+import type { FunctionDeclaration, ArrowFunction, FunctionExpression, ParameterDeclaration } from 'ts-morph'
 import { SyntaxKind } from 'ts-morph'
 
 // ============================================================================
@@ -202,7 +202,7 @@ function detectHappyPath(functionNode: FunctionNode): Behavior | null {
       importance: 'critical'
     },
     reasoning: '基础功能测试 - 确保正常路径工作',
-    exampleTest: generateHappyPathExample(functionName, params as any)
+    exampleTest: generateHappyPathExample(functionName, params)
   }
 }
 
@@ -478,8 +478,8 @@ it('should handle async errors', async () => {
 /**
  * 生成 Happy Path 示例测试
  */
-function generateHappyPathExample(functionName: string, params: any): string {
-  const paramList = Array.isArray(params) ? params.map((p: any) => p.getName()).join(', ') : ''
+function generateHappyPathExample(functionName: string, params: ParameterDeclaration[]): string {
+  const paramList = Array.isArray(params) ? params.map((p: ParameterDeclaration) => p.getName()).join(', ') : ''
   const hasParams = params.length > 0
   
   return `
