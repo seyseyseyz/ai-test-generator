@@ -4,8 +4,8 @@
 
 import type { Layer } from '../../types/index.js'
 
-// 重新导出 FunctionTarget
-export type { FunctionTarget } from '../../types/index.js'
+// 重新导出 FunctionTarget 和 Layer
+export type { FunctionTarget, Layer } from '../../types/index.js'
 
 /**
  * 评分配置

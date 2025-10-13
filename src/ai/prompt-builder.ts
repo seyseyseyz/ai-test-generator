@@ -7,7 +7,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 // @ts-ignore - template file may not have types
 import { generateFewShotPrompt } from '../../templates/test-examples.js';
-import { Project } from 'ts-morph';
+import { Project, type SourceFile, type FunctionDeclaration } from 'ts-morph';
 import { detectBoundaries, formatBoundariesForPrompt } from '../core/boundary-detector.js';
 import { analyzeMockRequirements, formatMocksForPrompt } from '../core/mock-analyzer.js';
 import { classifyBehaviors, formatBehaviorsForPrompt } from '../core/behavior-classifier.js';
@@ -19,6 +19,8 @@ interface TargetFilter {
   minScore?: number
   onlyPaths?: string[]
   functionNames?: string[]
+  limit?: number
+  skip?: number
 }
 
 interface TestTarget {
@@ -29,6 +31,13 @@ interface TestTarget {
   type: string
   layer: string
   path: string
+}
+
+interface PromptOptions {
+  framework?: string
+  testFramework?: string
+  customInstructions?: string
+  reportPath?: string
 }
 
 
@@ -153,16 +162,17 @@ export function extractFunctionCode(filePath: string, functionName: string): str
 /**
  * 构建测试生成 Prompt
  */
-export function buildBatchPrompt(targets: any, options: any = {}): string {
+export function buildBatchPrompt(targets: TestTarget[], options: PromptOptions = {}): string {
   const {
     framework = 'React + TypeScript',
     testFramework = 'Jest',
-    coverageTarget = 80,
     customInstructions = ''
   } = options;
   
+  const coverageTarget = 80;
+  
   // 预先计算测试文件清单（用于 JSON manifest 与展示）
-  const files = targets.map((t: any) => {
+  const files = targets.map((t: TestTarget) => {
     const testPath = t.path.replace(/\.(ts|tsx|js|jsx)$/i, (m: string) => `.test${m}`)
     return {
       path: testPath,
@@ -215,14 +225,14 @@ ${JSON.stringify({ version: 1, files }, null, 2)}
 `;
 
   // 🆕 v2.3.0: 使用 ts-morph 进行深度分析（边界检测 + Mock 分析）
-  let project: any = null;
+  let project: Project | null = null;
   try {
     project = new Project({ skipAddingFilesFromTsConfig: true });
   } catch (error) {
     console.error('⚠️  Warning: ts-morph initialization failed, skipping advanced analysis');
   }
 
-  targets.forEach((target: any, index: number) => {
+  targets.forEach((target: TestTarget, index: number) => {
     const code = extractFunctionCode(target.path, target.name);
     const testPath = target.path.replace(/\.(ts|tsx|js|jsx)$/i, (m: string) => `.test${m}`)
     
@@ -234,9 +244,9 @@ ${JSON.stringify({ version: 1, files }, null, 2)}
     
     if (project && existsSync(target.path)) {
       try {
-        const sourceFile = project.addSourceFileAtPath(target.path)
-        const functions = sourceFile.getFunctions()
-        const targetFunc = functions.find((f: any) => f.getName() === target.name)
+        const sourceFile: SourceFile = project.addSourceFileAtPath(target.path)
+        const functions: FunctionDeclaration[] = sourceFile.getFunctions()
+        const targetFunc = functions.find((f: FunctionDeclaration) => f.getName() === target.name)
         
         if (targetFunc) {
           // 边界条件检测
@@ -316,8 +326,8 @@ ${boundariesText}${mocksText}${behaviorsText}
  */
 export function runCLI(argv: string[] = process.argv): void {
   const args = argv.slice(2);
-  const filter: any = {};
-  const options: any = {};
+  const filter: TargetFilter = {};
+  const options: PromptOptions & { reportPath?: string } = {};
   
   // 解析参数
   for (let i = 0; i < args.length; i++) {
@@ -367,7 +377,7 @@ export function runCLI(argv: string[] = process.argv): void {
     let targets = parseTargets(mdPath, filter);
     
     // 支持跳过前 N 个（用于分页）
-    const skip = Number.isInteger(filter.skip) && filter.skip > 0 ? filter.skip : 0;
+    const skip = Number.isInteger(filter.skip) && filter.skip !== undefined && filter.skip > 0 ? filter.skip : 0;
     if (skip) targets = targets.slice(skip);
     
     if (filter.limit) targets = targets.slice(0, filter.limit);

@@ -22,7 +22,8 @@ import { computeScore, pickMetricsForTarget } from './calculator.js'
 import { buildDepGraph } from './dependency-graph.js'
 import { formatMarkdown, readExistingStatus, formatCSV } from './formatters/index.js'
 
-import type { ScoringConfig, ScoredTarget, GitSignals, FunctionTarget } from './types.js'
+import type { ScoringConfig, ScoredTarget, GitSignals, FunctionTarget, Layer, ImpactHint } from './types.js'
+import type { FunctionDeclaration, ArrowFunction, FunctionExpression } from 'ts-morph'
 
 /**
  * 构建函数指标提供者
@@ -53,12 +54,12 @@ async function buildFuncMetricsProvider(targets: FunctionTarget[]) {
       continue
     }
     
-    let node: any = sf.getFunction(t.name)
+    let node: FunctionDeclaration | ArrowFunction | FunctionExpression | undefined = sf.getFunction(t.name)
     if (!node) {
       const v = sf.getVariableDeclaration(t.name)
       const init = v?.getInitializer()
       if (init && (init.getKind() === SyntaxKind.FunctionExpression || init.getKind() === SyntaxKind.ArrowFunction)) {
-        node = init
+        node = init as ArrowFunction | FunctionExpression
       }
     }
     
@@ -120,7 +121,7 @@ export async function scoreTargets(
     }
     
     // 计算各项指标
-    const impactHint = (target as any).impactHint
+    const impactHint = (target as FunctionTarget & { impactHint?: ImpactHint }).impactHint
     const BC = mapBCByConfig(
       { name: target.name, path: target.path, impactHint },
       cfg
@@ -171,7 +172,7 @@ export async function scoreTargets(
       coverageScore,
       score: result.score,
       priority: result.priority,
-      layer: (result.layer !== 'N/A' ? result.layer : layer) as any,
+      layer: (result.layer !== 'N/A' ? result.layer : layer) as Layer,
       dependencyCount: depGraph.nodes.size
     } as ScoredTarget)
   }
