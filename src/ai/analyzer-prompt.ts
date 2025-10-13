@@ -1,5 +1,4 @@
 /**
-// @ts-nocheck
  * AI 分析 Prompt 构建器
  */
 

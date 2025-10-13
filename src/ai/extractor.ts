@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 /**
  * 从 AI 回复中提取测试文件并自动创建
  */
