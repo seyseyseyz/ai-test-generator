@@ -336,9 +336,19 @@ function updateFunctionStatus(reportPath: string, functionNames: string[], statu
 }
 
 /**
+ * 并行生成选项接口
+ */
+interface ParallelGenerateOptions {
+  reportPath?: string
+  priority?: string | null
+  count?: number | null
+  concurrency?: number
+}
+
+/**
  * 主函数：并行生成测试
  */
-export async function parallelGenerate(options: any = {}): Promise<void> {
+export async function parallelGenerate(options: ParallelGenerateOptions = {}): Promise<void> {
   const reportPath: string = (options.reportPath as string) || 'reports/ut_scores.md'
   const priority: string | null = (options.priority as string) || null
   const count: number | null = (options.count as number) || null
@@ -414,8 +424,8 @@ export async function parallelGenerate(options: any = {}): Promise<void> {
     throughput: 0
   }
   
-  const allSuccess = []
-  const allFailed = []
+  const allSuccess: string[] = []
+  const allFailed: string[] = []
   
   for (const result of results) {
     summary.success += result.success.length
@@ -498,7 +508,7 @@ async function main(argv = process.argv) {
   
   try {
     await parallelGenerate(options)
-  } catch (err: any) {
+  } catch (err: unknown) {
     const error = err as Error
     console.error('❌ Parallel generation failed:', error?.message || String(err))
     process.exit(1)
@@ -507,7 +517,7 @@ async function main(argv = process.argv) {
 
 // 如果直接运行此文件
 if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch((err: any) => {
+  main().catch((err: unknown) => {
     const error = err as Error
     console.error('❌ Fatal error:', error?.message || String(err))
     process.exit(1)
