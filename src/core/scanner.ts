@@ -122,8 +122,8 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
     const imports = sf.getImportDeclarations()
     const criticalKeywords = ['stripe', 'payment', 'auth', 'axios', 'fetch', 'prisma', 'db', 'api', 'jotai', 'zustand']
     const criticalImports = imports
-      .map(imp => imp.getModuleSpecifierValue())
-      .filter(mod => criticalKeywords.some(kw => mod.toLowerCase().includes(kw)))
+      .map((imp: ReturnType<typeof sf.getImportDeclarations>[number]) => imp.getModuleSpecifierValue())
+      .filter((mod: string) => criticalKeywords.some((kw: string) => mod.toLowerCase().includes(kw)))
       .slice(0, 5) // 限制数量
     
     fileImportsCache.set(filePath, criticalImports)
@@ -173,14 +173,14 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
           ['Payment', 'Order', 'Booking', 'User', 'Hotel', 'Room', 'Cart', 'Price', 'Guest', 'Request', 'Response']
         
         metadata.businessEntities = params
-          .map(p => {
+          .map((p: ReturnType<typeof node.getParameters>[number]) => {
             try {
               return p.getType().getText()
             } catch {
               return ''
             }
           })
-          .filter(type => entityKeywords.some(kw => type.includes(kw)))
+          .filter((type: string) => entityKeywords.some((kw: string) => type.includes(kw)))
           .slice(0, 3) // 限制数量
       }
       
@@ -199,7 +199,7 @@ async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
         if (jsDocs.length > 0) {
           metadata.hasDocumentation = true
           metadata.documentation = jsDocs
-            .map(doc => {
+            .map((doc: ReturnType<typeof node.getJsDocs>[number]) => {
               const comment = doc.getComment()
               return typeof comment === 'string' ? comment : ''
             })
