@@ -83,14 +83,14 @@ function readTodoFunctions(reportPath: string, priority: string | null): any[] {
     
     const parts = line.split('|').map(p => p.trim()).filter(Boolean)
     if (parts.length >= 7) {
-      const [_status, score, pri, name, _type, _layer, path] = parts
+      const [_status, score, pri, name, type, layer, path] = parts
       todoFunctions.push({
-        name,
-        path,
+        name: name || '',
+        path: path || '',
         score: parseFloat(score),
         priority: pri,
-        type,
-        layer
+        type: type || '',
+        layer: layer || ''
       })
     }
   }
