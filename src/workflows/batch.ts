@@ -65,10 +65,10 @@ function readTodoFunctions(reportPath: string, priority: any, limit: number) {
     if (parts.length >= 7) {
       const [_status, score, pri, name, _type, _layer, path] = parts
       todoFunctions.push({
-        name: name || '',
-        path: path || '',
-        score: parseFloat(score),
-        priority: pri
+        name: (name || '').toString(),
+        path: (path || '').toString(),
+        score: parseFloat(score || '0'),
+        priority: (pri || '').toString()
       })
     }
   }
@@ -125,7 +125,8 @@ async function main(argv: any = process.argv) {
   console.log(`📝 Found ${todoFunctions.length} TODO functions`)
   
   // 记录初始覆盖率
-  const beforeCov = getCoveragePercent(readCoverageSummary())
+  const summary = readCoverageSummary()
+  const beforeCov = summary ? getCoveragePercent(summary) : 0
   console.log(`📊 Initial coverage: ${beforeCov.toFixed(2)}%`)
 
   // 1) 生成 Prompt（只针对 TODO 函数，加入上一轮失败提示）
@@ -156,7 +157,7 @@ async function main(argv: any = process.argv) {
 
   // 2) 调用 AI
   console.log('\n🤖 Calling AI...')
-  const aiResponse = await sh('node', [join(pkgRoot, 'lib/ai/client.mjs'), 'prompt.txt'], { captureStdout: true }) as string
+  await sh('node', [join(pkgRoot, 'lib/ai/client.mjs'), 'prompt.txt'], { captureStdout: true })
 
   // 3) 提取测试
   console.log('\n📦 Extracting tests...')
@@ -181,7 +182,8 @@ async function main(argv: any = process.argv) {
 
   // 5) 校验覆盖率增量
   if (minCovDelta > 0) {
-    const afterCov = getCoveragePercent(readCoverageSummary())
+    const afterSummary = readCoverageSummary()
+    const afterCov = afterSummary ? getCoveragePercent(afterSummary) : 0
     const delta = afterCov - beforeCov
     if (delta < minCovDelta) {
       console.warn(`⚠️  Coverage delta ${delta.toFixed(2)}% < required ${minCovDelta}% (before: ${beforeCov.toFixed(2)}%, after: ${afterCov.toFixed(2)}%)`)

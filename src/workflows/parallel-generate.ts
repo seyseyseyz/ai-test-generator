@@ -85,12 +85,12 @@ function readTodoFunctions(reportPath: string, priority: string | null): any[] {
     if (parts.length >= 7) {
       const [_status, score, pri, name, type, layer, path] = parts
       todoFunctions.push({
-        name: name || '',
-        path: path || '',
-        score: parseFloat(score),
-        priority: pri,
-        type: type || '',
-        layer: layer || ''
+        name: (name || '').toString(),
+        path: (path || '').toString(),
+        score: parseFloat(score || '0'),
+        priority: (pri || '').toString(),
+        type: (type || '').toString(),
+        layer: (layer || '').toString()
       })
     }
   }
@@ -173,7 +173,7 @@ function groupIntoBatches(functions: any[], options: any = {}): any[] {
  * 4. 运行 Jest
  */
 async function generateBatch(batch: any[], batchIndex: number, options: any = {}): Promise<any> {
-  const { reportPath, workDir, config } = options
+  const { reportPath, workDir, config: _config } = options
   
   console.log(`\n🔄 [Batch ${batchIndex + 1}] Generating ${batch.length} functions...`)
   console.log(`   Files: ${[...new Set(batch.map((f: any) => f.path))].join(', ')}`)
@@ -202,9 +202,9 @@ async function generateBatch(batch: any[], batchIndex: number, options: any = {}
     writeFileSync(batchListPath, batch.map(f => f.name).join('\n'), 'utf-8')
     promptArgs.push('--function-list', batchListPath)
     
-    let promptText
+    let promptText: string | null
     try {
-      const hintsFile = join(batchDir, 'hints.txt')
+      const _hintsFile = join(batchDir, 'hints.txt')
       if (existsSync('reports/hints.txt')) {
         promptText = await sh('node', [...promptArgs, '--hints-file', 'reports/hints.txt'], { 
           captureStdout: true,
@@ -218,7 +218,7 @@ async function generateBatch(batch: any[], batchIndex: number, options: any = {}
     }
     
     const promptPath = join(batchDir, 'prompt.txt')
-    writeFileSync(promptPath, promptText, 'utf-8')
+    writeFileSync(promptPath, promptText || '', 'utf-8')
     
     // 2. 调用 AI
     const aiResponsePath = join(batchDir, 'ai_response.txt')
