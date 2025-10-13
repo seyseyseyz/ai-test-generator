@@ -1,37 +1,14 @@
 #!/usr/bin/env node
 // @ts-nocheck
 
-import { readFileSync, writeFileSync } from 'node:fs'
-
-async function req(mod, installHint) {
-  try { return await import(mod) } catch {
-    const hint = installHint || mod
-    throw new Error(`${mod} not installed. Run: npm i -D ${hint}`)
-  }
-}
-
-function parseArgs(argv) {
-  const args = {}
-  for (let i = 2; i < argv.length; i++) {
-    const a = argv[i]
-    if (a.startsWith('--')) {
-      const [k, v] = a.includes('=') ? a.split('=') : [a, argv[i + 1]]
-      args[k.replace(/^--/, '')] = v === undefined || v.startsWith('--') ? true : v
-      if (v !== undefined && !v.startsWith('--') && !a.includes('=')) i++
-    }
-  }
-  return args
-}
-
-function stripJsonComments(s) {
-  return String(s)
-    .replace(/\/\*[\s\S]*?\*\//g, '') // block comments
-    .replace(/(^|\s)\/\/.*$/gm, '')     // line comments
-}
-function loadJson(p) { try { return JSON.parse(stripJsonComments(readFileSync(p, 'utf8'))) } catch { return null } }
+import { writeFileSync } from 'node:fs'
+import { parseArgs } from '../shared/cli-utils.js'
+import { loadJson } from '../shared/file-utils.js'
+import { requirePackage } from '../shared/process-utils.js'
+import { relativizePath, normalizePath } from '../shared/path-utils.js'
 
 async function listFiles(excludeDirs = []) {
-  const fg = (await req('fast-glob', 'fast-glob')).default
+  const fg = (await requirePackage('fast-glob', 'fast-glob')).default
   
   // 基础排除规则
   const baseExcludes = ['!**/*.d.ts', '!**/node_modules/**']
@@ -63,7 +40,7 @@ function decideLayer(filePath, cfg) {
   if (!layers) return 'unknown'
   
   // 标准化路径：移除反斜杠，去掉 src/ 前缀
-  let normalizedPath = filePath.replace(/\\/g, '/')
+  let normalizedPath = normalizePath(filePath)
   if (normalizedPath.startsWith('src/')) {
     normalizedPath = normalizedPath.substring(4)
   }
@@ -105,11 +82,7 @@ function buildRoiHint(path, content) {
   }
 }
 
-function relativize(path) {
-  const cwd = process.cwd().replace(/\\/g, '/')
-  const norm = String(path).replace(/\\/g, '/')
-  return norm.startsWith(cwd) ? norm.slice(cwd.length + 1) : norm
-}
+// Use shared relativizePath utility
 
 function getLoc(text, start, end) {
   const slice = text.slice(start, end)
@@ -117,7 +90,7 @@ function getLoc(text, start, end) {
 }
 
 async function extractTargets(files) {
-  const { Project, SyntaxKind } = await req('ts-morph', 'ts-morph')
+  const { Project, SyntaxKind } = await requirePackage('ts-morph', 'ts-morph')
   const cfg = loadJson('ut_scoring_config.json') || {}
   const internalInclude = cfg.internalInclude === true
   const minLoc = cfg?.internalThresholds?.minLoc ?? 15
@@ -248,7 +221,7 @@ async function extractTargets(files) {
   
   for (const sf of project.getSourceFiles()) {
     const absPath = sf.getFilePath()
-    const relPath = relativize(absPath)
+    const relPath = relativizePath(absPath)
     const content = sf.getFullText()
 
     // 导出符号 - 仅包含函数和组件

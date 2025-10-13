@@ -1,27 +1,11 @@
 #!/usr/bin/env node
 // @ts-nocheck
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
-
-async function req(mod, hint) { try { return await import(mod) } catch { throw new Error(`${mod} not installed. Run: npm i -D ${hint || mod}`) } }
-
-function parseArgs(argv) {
-  const args = {}
-  for (let i = 2; i < argv.length; i++) {
-    const a = argv[i]
-    if (a.startsWith('--')) {
-      const [k, v] = a.includes('=') ? a.split('=') : [a, argv[i + 1]]
-      args[k.replace(/^--/, '')] = v === undefined || v.startsWith('--') ? true : v
-      if (v !== undefined && !v.startsWith('--') && !a.includes('=')) i++
-    }
-  }
-  return args
-}
-
-function loadJson(p) {
-  if (!p || !existsSync(p)) return null
-  try { return JSON.parse(readFileSync(p, 'utf8')) } catch { return null }
-}
+import { writeFileSync } from 'node:fs'
+import { parseArgs } from '../shared/cli-utils.js'
+import { loadJson } from '../shared/file-utils.js'
+import { requirePackage } from '../shared/process-utils.js'
+import { matchesPattern } from '../shared/path-utils.js'
 
 function toFixedDown(num, digits = 2) { const m = Math.pow(10, digits); return Math.floor(num * m) / m }
 function clamp(n, min, max) { return Math.max(min, Math.min(max, n)) }
