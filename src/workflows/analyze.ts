@@ -14,9 +14,17 @@ import { interactiveReview } from '../ai/reviewer.js'
 import { applyAISuggestions } from '../ai/config-writer.js'
 
 /**
+ * Analyze选项接口
+ */
+interface AnalyzeOptions {
+  config?: string
+  output?: string
+}
+
+/**
  * AI 分析工作流
  */
-export async function analyze(options: any): Promise<void> {
+export async function analyze(options: AnalyzeOptions): Promise<void> {
   const { config } = options
   // output 参数暂未使用
   
@@ -88,17 +96,19 @@ export async function analyze(options: any): Promise<void> {
   // 7. 解析并验证响应
   console.log('✅ Step 7: Validating AI suggestions...')
   
-  let parsed: any
+  let parsed: unknown
   try {
     // 尝试提取 JSON（AI 可能返回 markdown 包装）
-    const jsonMatch = (responseText as any).match(/```json\s*([\s\S]*?)\s*```/) || 
-                      (responseText as any).match(/```\s*([\s\S]*?)\s*```/)
+    const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || 
+                      responseText.match(/```\s*([\s\S]*?)\s*```/)
     
     const jsonText = jsonMatch ? jsonMatch[1] : responseText
     parsed = JSON.parse(jsonText)
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const error = err as Error
     console.error('❌ Failed to parse AI response as JSON')
-    console.error('   Response preview:', (responseText as any).slice(0, 500))
+    console.error('   Response preview:', responseText.slice(0, 500))
+    console.error('   Error:', error?.message || String(err))
     process.exit(1)
   }
   
@@ -128,8 +138,9 @@ export async function analyze(options: any): Promise<void> {
     await applyAISuggestions(configPath, approved)
     console.log('✅ Config updated!')
     console.log('\n💡 Next: Run `ai-test scan` to recalculate scores with AI enhancements.')
-  } catch (err: any) {
-    console.error(`❌ Failed to update config: ${err.message}`)
+  } catch (err: unknown) {
+    const error = err as Error
+    console.error(`❌ Failed to update config: ${error?.message || String(err)}`)
     process.exit(1)
   }
 }
@@ -143,8 +154,9 @@ async function callCursorAgent(promptPath: string): Promise<string> {
     let prompt: string
     try {
       prompt = readFileSync(promptPath, 'utf-8')
-    } catch (err: any) {
-      reject(new Error(`Failed to read prompt file: ${err.message}`))
+    } catch (err: unknown) {
+      const error = err as Error
+      reject(new Error(`Failed to read prompt file: ${error?.message || String(err)}`))
       return
     }
     
