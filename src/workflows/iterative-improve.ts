@@ -9,7 +9,7 @@
  * 4. 重复直到：达到质量标准 OR 达到最大迭代次数
  */
 
-import { spawn } from 'node:child_process'
+import { spawn, ChildProcess, StdioOptions } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -29,22 +29,35 @@ const QUALITY_STANDARDS = {
   maxIterations: 3,         // 最大迭代次数
   temperature: 0.4,         // Meta 发现: 0.4 比 0.0 成功率高 25% (Table 4)
   samplesPerIteration: 1    // 每次迭代生成的样本数（可扩展为 N-sample）
+} as const
+
+/**
+ * Shell执行选项
+ */
+interface ShellOptions {
+  captureStdout?: boolean
+  cwd?: string
+  env?: Record<string, string>
 }
 
 /**
  * 执行命令
  */
-function sh(cmd: string, args: string[], options: any): Promise<any> {
+function sh(cmd: string, args: string[], options: ShellOptions = {}): Promise<string | null> {
   return new Promise((resolve, reject) => {
-    const stdio: any = options.captureStdout ? ['inherit', 'pipe', 'inherit'] : 'inherit'
-    const child: any = spawn(cmd, args, { stdio, cwd: process.cwd() })
+    const stdio: StdioOptions = options.captureStdout ? ['inherit', 'pipe', 'inherit'] : 'inherit'
+    const child: ChildProcess = spawn(cmd, args, { 
+      stdio, 
+      cwd: options.cwd || process.cwd(),
+      env: options.env || process.env as Record<string, string>
+    })
     
     const chunks: Buffer[] = []
-    if (options.captureStdout) {
+    if (options.captureStdout && child.stdout) {
       child.stdout.on('data', (d: Buffer) => chunks.push(Buffer.from(d)))
     }
     
-    child.on('close', (code: number) => {
+    child.on('close', (code: number | null) => {
       if (code === 0) {
         const output = options.captureStdout ? Buffer.concat(chunks).toString('utf8') : null
         resolve(output)
@@ -57,31 +70,65 @@ function sh(cmd: string, args: string[], options: any): Promise<any> {
 }
 
 /**
+ * Jest 覆盖率摘要接口
+ */
+interface CoverageSummary {
+  total?: {
+    lines?: { pct?: number }
+    statements?: { pct?: number }
+    functions?: { pct?: number }
+    branches?: { pct?: number }
+  }
+}
+
+/**
  * 读取覆盖率
  */
-function readCoverageSummary(): any {
+function readCoverageSummary(): CoverageSummary | null {
   const path = 'coverage/coverage-summary.json'
   if (!existsSync(path)) return null
   try { 
-    return JSON.parse(readFileSync(path, 'utf8')) 
+    return JSON.parse(readFileSync(path, 'utf8')) as CoverageSummary
   } catch { 
     return null 
   }
 }
 
-function getCoveragePercent(summary: any): number {
+function getCoveragePercent(summary: CoverageSummary | null): number {
   if (!summary || !summary.total) return 0
   return summary.total.lines?.pct ?? 0
+}
+
+/**
+ * 质量评估结果
+ */
+interface QualityEvaluation {
+  buildSuccess: boolean
+  testPass: boolean
+  coverageIncrease: number
+  passesStandard: boolean
+  feedback: string[]
+  telemetry: {
+    iteration: number
+    timestamp: string
+    buildTimeMs: number
+    testTimeMs: number
+    temperature: number
+    coverageBefore: number
+    coverageAfter: number
+    totalTimeMs: number
+    passesStandard: boolean
+  }
 }
 
 /**
  * 评估测试质量（Meta Filter Pipeline）
  * Reference: Section 3.1 - Build, Run, Coverage filters
  */
-async function evaluateQuality(beforeCov: number, iteration: number): Promise<any> {
+async function evaluateQuality(beforeCov: number, iteration: number): Promise<QualityEvaluation> {
   const startTime = Date.now()
   
-  const quality: any = {
+  const quality: QualityEvaluation = {
     buildSuccess: false,
     testPass: false,
     coverageIncrease: 0,
@@ -152,7 +199,7 @@ async function evaluateQuality(beforeCov: number, iteration: number): Promise<an
  * 计算候选测试的综合评分（用于 N-Sample 选择）
  * Meta 策略: 综合考虑构建、测试、覆盖率三个维度
  */
-function calculateCandidateScore(quality: any): number {
+function calculateCandidateScore(quality: QualityEvaluation): number {
   let score = 0
   
   // 1. 构建成功 (权重: 40%) - 最基础
@@ -174,10 +221,20 @@ function calculateCandidateScore(quality: any): number {
 }
 
 /**
+ * 反馈信息
+ */
+interface FeedbackInfo {
+  iteration: number
+  timestamp: string
+  issues: string[]
+  suggestions: string[]
+}
+
+/**
  * 收集改进反馈
  */
-async function collectFeedback(quality: any, iteration: number): Promise<any> {
-  const feedback: any = {
+async function collectFeedback(quality: QualityEvaluation, iteration: number): Promise<FeedbackInfo> {
+  const feedback: FeedbackInfo = {
     iteration,
     timestamp: new Date().toISOString(),
     issues: quality.feedback,
@@ -206,11 +263,29 @@ async function collectFeedback(quality: any, iteration: number): Promise<any> {
 }
 
 /**
+ * 迭代改进选项
+ */
+interface IterativeImproveOptions {
+  targetFunctions?: string[]
+  reportPath?: string
+  maxIterations?: number
+  samplesPerIteration?: number
+}
+
+/**
+ * 候选样本
+ */
+interface CandidateSample {
+  sampleIdx: number
+  quality: QualityEvaluation
+  score: number
+}
+
+/**
  * 迭代改进主循环（Meta TestGen-LLM 风格）
  */
-export async function iterativeImprove(options: any = {}): Promise<void> {
+export async function iterativeImprove(options: IterativeImproveOptions = {}): Promise<void> {
   const {
-    targetFunctions,
     reportPath = 'reports/ut_scores.md',
     maxIterations = QUALITY_STANDARDS.maxIterations,
     samplesPerIteration = QUALITY_STANDARDS.samplesPerIteration  // 🆕 N-Sample Generation
@@ -228,8 +303,8 @@ export async function iterativeImprove(options: any = {}): Promise<void> {
   console.log(`📈 Initial Coverage: ${beforeCov.toFixed(2)}%\n`)
   
   let iteration = 1
-  let quality = null
-  let feedbackHistory = []
+  let quality: QualityEvaluation | null = null
+  const feedbackHistory: FeedbackInfo[] = []
   
   while (iteration <= maxIterations) {
     console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`)
@@ -242,19 +317,19 @@ export async function iterativeImprove(options: any = {}): Promise<void> {
     try {
       if (feedbackHistory.length > 0) {
         // 将 feedback 写入 hints 文件
-        const hintsContent = feedbackHistory.map((fb, idx) => 
+        const hintsContent = feedbackHistory.map((fb) => 
           `## Iteration ${fb.iteration} Feedback:\n` +
-          `Issues:\n${fb.issues.map(i => `- ${i}`).join('\n')}\n` +
-          `Suggestions:\n${fb.suggestions.map(s => `- ${s}`).join('\n')}`
+          `Issues:\n${fb.issues.map((i: string) => `- ${i}`).join('\n')}\n` +
+          `Suggestions:\n${fb.suggestions.map((s: string) => `- ${s}`).join('\n')}`
         ).join('\n\n')
         
         writeFileSync('reports/improvement_hints.txt', hintsContent, 'utf-8')
         console.log(`💡 Using feedback from ${feedbackHistory.length} previous iteration(s)`)
       }
       
-      // 🆕 N-Sample Generation: 生成多个候选，选择最佳
+      //  N-Sample Generation: 生成多个候选，选择最佳
       if (samplesPerIteration > 1) {
-        const candidates = []
+        const candidates: CandidateSample[] = []
         
         for (let sampleIdx = 0; sampleIdx < samplesPerIteration; sampleIdx++) {
           console.log(`\n   🎲 Sample ${sampleIdx + 1}/${samplesPerIteration}...`)
@@ -291,6 +366,10 @@ export async function iterativeImprove(options: any = {}): Promise<void> {
         // 选择最佳候选
         candidates.sort((a, b) => b.score - a.score)
         const bestCandidate = candidates[0]
+        
+        if (!bestCandidate) {
+          throw new Error('No valid candidate samples generated')
+        }
         
         console.log(`\n   ✨ Best sample: #${bestCandidate.sampleIdx + 1} (score: ${bestCandidate.score.toFixed(2)})`)
         
@@ -347,10 +426,12 @@ export async function iterativeImprove(options: any = {}): Promise<void> {
     // 5. 检查是否达到最大迭代次数
     if (iteration >= maxIterations) {
       console.log(`\n⏱️  Reached max iterations (${maxIterations})`)
-      console.log(`   Final quality:`)
-      console.log(`   - Build: ${quality.buildSuccess ? 'Pass' : 'Fail'}`)
-      console.log(`   - Tests: ${quality.testPass ? 'Pass' : 'Fail'}`)
-      console.log(`   - Coverage: +${quality.coverageIncrease.toFixed(2)}%`)
+      if (quality) {
+        console.log(`   Final quality:`)
+        console.log(`   - Build: ${quality.buildSuccess ? 'Pass' : 'Fail'}`)
+        console.log(`   - Tests: ${quality.testPass ? 'Pass' : 'Fail'}`)
+        console.log(`   - Coverage: +${quality.coverageIncrease.toFixed(2)}%`)
+      }
       break
     }
     
