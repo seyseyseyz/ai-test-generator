@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 /**
  * Meta TestGen-LLM 风格的迭代改进机制
  * 
