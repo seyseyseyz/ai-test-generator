@@ -144,24 +144,8 @@ export interface BoundaryAnalysis {
 // Mock Analysis Types
 // ============================================================================
 
-/**
- * Mock requirement for a dependency
- */
-export interface MockRequirement {
-  type: 'http' | 'timer' | 'filesystem' | 'database' | 'external'
-  pattern: RegExp
-  recommendation: string
-  example: string
-}
-
-/**
- * Mock analysis result
- */
-export interface MockAnalysis {
-  functionName: string
-  mocks: MockRequirement[]
-  count: number
-}
+// Mock types moved to core/mock-analyzer.ts (more complete definitions)
+// Re-export them from core module instead
 
 // ============================================================================
 // Behavior Classification Types
@@ -228,7 +212,7 @@ export interface PromptContext {
   type: FunctionType
   dependencies?: string
   boundaries?: BoundaryAnalysis
-  mocks?: MockAnalysis
+  mocks?: any  // MockAnalysis removed - use MockRequirement[] from core/mock-analyzer.ts
   behaviors?: any  // BehaviorAnalysis removed - use Behavior[] from core/behavior-classifier.ts
   coverage?: CoverageData
   examples?: string
