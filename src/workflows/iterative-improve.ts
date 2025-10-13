@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 /**
  * Meta TestGen-LLM 风格的迭代改进机制
  * 
@@ -35,17 +34,17 @@ const QUALITY_STANDARDS = {
 /**
  * 执行命令
  */
-function sh(cmd, args, options) {
+function sh(cmd: string, args: string[], options: any): Promise<any> {
   return new Promise((resolve, reject) => {
-    const stdio = options.captureStdout ? ['inherit', 'pipe', 'inherit'] : 'inherit'
-    const child = spawn(cmd, args, { stdio, cwd: process.cwd() })
+    const stdio: any = options.captureStdout ? ['inherit', 'pipe', 'inherit'] : 'inherit'
+    const child: any = spawn(cmd, args, { stdio, cwd: process.cwd() })
     
-    const chunks = []
+    const chunks: Buffer[] = []
     if (options.captureStdout) {
-      child.stdout.on('data', d => chunks.push(Buffer.from(d)))
+      child.stdout.on('data', (d: Buffer) => chunks.push(Buffer.from(d)))
     }
     
-    child.on('close', (code) => {
+    child.on('close', (code: number) => {
       if (code === 0) {
         const output = options.captureStdout ? Buffer.concat(chunks).toString('utf8') : null
         resolve(output)
@@ -60,7 +59,7 @@ function sh(cmd, args, options) {
 /**
  * 读取覆盖率
  */
-function readCoverageSummary() {
+function readCoverageSummary(): any {
   const path = 'coverage/coverage-summary.json'
   if (!existsSync(path)) return null
   try { 
@@ -70,7 +69,7 @@ function readCoverageSummary() {
   }
 }
 
-function getCoveragePercent(summary) {
+function getCoveragePercent(summary: any): number {
   if (!summary || !summary.total) return 0
   return summary.total.lines?.pct ?? 0
 }
@@ -79,7 +78,7 @@ function getCoveragePercent(summary) {
  * 评估测试质量（Meta Filter Pipeline）
  * Reference: Section 3.1 - Build, Run, Coverage filters
  */
-async function evaluateQuality(beforeCov, iteration) {
+async function evaluateQuality(beforeCov: number, iteration: number): Promise<any> {
   const startTime = Date.now()
   
   const quality = {
@@ -205,7 +204,7 @@ async function collectFeedback(quality, iteration) {
 /**
  * 迭代改进主循环（Meta TestGen-LLM 风格）
  */
-export async function iterativeImprove(options: any): Promise<void> {
+export async function iterativeImprove(options: any = {}): Promise<void> {
   const {
     targetFunctions,
     reportPath = 'reports/ut_scores.md',
@@ -392,7 +391,7 @@ export async function iterativeImprove(options: any): Promise<void> {
 /**
  * CLI 入口
  */
-async function main(argv = process.argv) {
+async function main(argv: string[] = process.argv): Promise<void> {
   const args = argv.slice(2)
   const reportPath = args[0] || 'reports/ut_scores.md'
   const maxIterations = parseInt(args[1]) || QUALITY_STANDARDS.maxIterations
