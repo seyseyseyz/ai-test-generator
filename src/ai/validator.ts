@@ -2,7 +2,9 @@
  * AI 响应验证器
  */
 
-import type { AISuggestions, SuggestionSchema } from '../types/ai-suggestions.js'
+import type { AISuggestions, SuggestionSchema, SuggestionItem } from '../types/ai-suggestions.js'
+
+type ValidatorValue = string | number | string[] | unknown
 
 const SCHEMA: Record<string, SuggestionSchema> = {
   businessCriticalPaths: {
@@ -10,11 +12,11 @@ const SCHEMA: Record<string, SuggestionSchema> = {
     maxCount: 10,
     requiredFields: ['pattern', 'confidence', 'reason', 'suggestedBC', 'evidence'],
     validators: {
-      pattern: (v: any) => /^[a-z0-9_/-]+\/?\*?\*?$/.test(v),
-      confidence: (v: any) => v >= 0.85 && v <= 1.0,
-      suggestedBC: (v: any) => [8, 9, 10].includes(v),
-      reason: (v: any) => v.length > 0 && v.length <= 200,
-      evidence: (v: any) => Array.isArray(v) && v.length >= 2 && v.length <= 3
+      pattern: (v: ValidatorValue) => typeof v === 'string' && /^[a-z0-9_/-]+\/?\*?\*?$/.test(v),
+      confidence: (v: ValidatorValue) => typeof v === 'number' && v >= 0.85 && v <= 1.0,
+      suggestedBC: (v: ValidatorValue) => typeof v === 'number' && [8, 9, 10].includes(v),
+      reason: (v: ValidatorValue) => typeof v === 'string' && v.length > 0 && v.length <= 200,
+      evidence: (v: ValidatorValue) => Array.isArray(v) && v.length >= 2 && v.length <= 3
     }
   },
   highRiskModules: {
@@ -22,11 +24,11 @@ const SCHEMA: Record<string, SuggestionSchema> = {
     maxCount: 10,
     requiredFields: ['pattern', 'confidence', 'reason', 'suggestedER', 'evidence'],
     validators: {
-      pattern: (v: any) => /^[a-z0-9_/-]+\/?\*?\*?$/.test(v),
-      confidence: (v: any) => v >= 0.75 && v <= 1.0,
-      suggestedER: (v: any) => [7, 8, 9, 10].includes(v),
-      reason: (v: any) => v.length > 0 && v.length <= 200,
-      evidence: (v: any) => Array.isArray(v) && v.length >= 2 && v.length <= 3
+      pattern: (v: ValidatorValue) => typeof v === 'string' && /^[a-z0-9_/-]+\/?\*?\*?$/.test(v),
+      confidence: (v: ValidatorValue) => typeof v === 'number' && v >= 0.75 && v <= 1.0,
+      suggestedER: (v: ValidatorValue) => typeof v === 'number' && [7, 8, 9, 10].includes(v),
+      reason: (v: ValidatorValue) => typeof v === 'string' && v.length > 0 && v.length <= 200,
+      evidence: (v: ValidatorValue) => Array.isArray(v) && v.length >= 2 && v.length <= 3
     }
   },
   testabilityAdjustments: {
@@ -34,11 +36,11 @@ const SCHEMA: Record<string, SuggestionSchema> = {
     maxCount: 10,
     requiredFields: ['pattern', 'confidence', 'reason', 'adjustment', 'evidence'],
     validators: {
-      pattern: (v: any) => /^[a-z0-9_/-]+\/?\*?\*?$/.test(v),
-      confidence: (v: any) => v >= 0.80 && v <= 1.0,
-      adjustment: (v: any) => ['-2', '-1', '+1', '+2'].includes(v),
-      reason: (v: any) => v.length > 0 && v.length <= 200,
-      evidence: (v: any) => Array.isArray(v) && v.length >= 2 && v.length <= 3
+      pattern: (v: ValidatorValue) => typeof v === 'string' && /^[a-z0-9_/-]+\/?\*?\*?$/.test(v),
+      confidence: (v: ValidatorValue) => typeof v === 'number' && v >= 0.80 && v <= 1.0,
+      adjustment: (v: ValidatorValue) => typeof v === 'string' && ['-2', '-1', '+1', '+2'].includes(v),
+      reason: (v: ValidatorValue) => typeof v === 'string' && v.length > 0 && v.length <= 200,
+      evidence: (v: ValidatorValue) => Array.isArray(v) && v.length >= 2 && v.length <= 3
     }
   }
 }
@@ -46,7 +48,7 @@ const SCHEMA: Record<string, SuggestionSchema> = {
 /**
  * 验证单个建议
  */
-function validateSuggestion(item: Record<string, any>, schema: SuggestionSchema): boolean {
+function validateSuggestion(item: Record<string, unknown>, schema: SuggestionSchema): boolean {
   // 检查必需字段
   for (const field of schema.requiredFields) {
     if (!(field in item)) {
@@ -55,13 +57,14 @@ function validateSuggestion(item: Record<string, any>, schema: SuggestionSchema)
   }
   
   // 检查置信度
-  if (item.confidence < schema.minConfidence) {
+  const confidence = item.confidence
+  if (typeof confidence !== 'number' || confidence < schema.minConfidence) {
     return false
   }
   
   // 运行字段验证器
   for (const [field, validator] of Object.entries(schema.validators)) {
-    if (field in item && !(validator as any)(item[field])) {
+    if (field in item && !validator(item[field])) {
       return false
     }
   }
@@ -72,7 +75,7 @@ function validateSuggestion(item: Record<string, any>, schema: SuggestionSchema)
 /**
  * 验证并清洗 AI 响应
  */
-export function validateAndSanitize(parsed: { suggestions?: any }): AISuggestions {
+export function validateAndSanitize(parsed: { suggestions?: Record<string, unknown[]> }): AISuggestions {
   const result: AISuggestions = {
     businessCriticalPaths: [],
     highRiskModules: [],
@@ -92,11 +95,17 @@ export function validateAndSanitize(parsed: { suggestions?: any }): AISuggestion
       if (!schema || !Array.isArray(items)) continue
       
       const validated = items
-        .filter(item => validateSuggestion(item, schema))
-        .sort((a: any, b: any) => b.confidence - a.confidence)
+        .filter((item): item is Record<string, unknown> => 
+          typeof item === 'object' && item !== null && validateSuggestion(item as Record<string, unknown>, schema)
+        )
+        .sort((a, b) => {
+          const aConf = typeof a.confidence === 'number' ? a.confidence : 0
+          const bConf = typeof b.confidence === 'number' ? b.confidence : 0
+          return bConf - aConf
+        })
         .slice(0, schema.maxCount)
       
-      result[key] = validated as any
+      result[key] = validated as SuggestionItem[]
     }
   }
   
