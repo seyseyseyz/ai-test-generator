@@ -15,6 +15,9 @@ export * from './iterative-improve.js'
 // 🆕 v2.4.0: 并行生成工作流
 export * from './parallel-generate.js'
 
+// 🆕 v3.1.0: Best Practices 生成
+export * from './init-best-practices.js'
+
 // 批处理工作流（内部使用）
 // export { main as runBatch } from './batch.js' // CLI only
 // export { main as runAll } from './all.js' // CLI only

@@ -56,6 +56,98 @@ program
   })
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 命令 1.5: init-best-practices - 生成测试规范
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+program
+  .command('init-best-practices')
+  .description('Generate project-specific testing best practices')
+  .option('--inline', 'Generate inline config instead of separate file')
+  .option('-c, --config <path>', 'Config file path', 'ai-test.config.jsonc')
+  .addHelpText('after', `
+Modes:
+  - File mode (default): Generates best_practices.md file
+  - Inline mode (--inline): Embeds config in ai-test.config.jsonc
+
+How it works:
+  1. Analyzes your project structure and package.json
+  2. Detects test framework (jest/vitest/mocha)
+  3. Extracts patterns from existing tests (if any)
+  4. Uses AI to generate testing standards
+  5. Outputs either Markdown file or inline config
+
+Examples:
+  $ ai-test init-best-practices            # Generate best_practices.md
+  $ ai-test init-best-practices --inline   # Embed in config file
+  `)
+  .action(async (options: { inline?: boolean; config?: string }) => {
+    const { analyzeProject, generateBestPracticesFile, generateBestPracticesInline } = await import('./workflows/init-best-practices.js')
+    const { detectConfig, readConfig } = await import('./utils/config-manager.js')
+    const { existsSync, writeFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+
+    const rootDir = process.cwd()
+    const configPath = join(rootDir, options.config || 'ai-test.config.jsonc')
+
+    console.log('🔍 Analyzing project...')
+    const analysis = await analyzeProject(rootDir)
+    console.log(`   Test framework: ${analysis.testFramework}`)
+    console.log(`   Test file pattern: ${analysis.testFilePattern}`)
+    console.log(`   Existing tests: ${analysis.hasExistingTests ? 'Yes' : 'No'}`)
+
+    if (options.inline) {
+      // Inline mode: Embed in config file
+      console.log('\n🤖 Generating inline config...')
+      const inlineConfig = await generateBestPracticesInline(rootDir, analysis)
+
+      // Update config file
+      const existingPath = detectConfig(configPath)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const config = existingPath ? readConfig(existingPath) as any : {} as any
+      config.bestPractices = {
+        enabled: true,
+        source: 'inline',
+        inline: inlineConfig
+      }
+
+      writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8')
+      console.log(`✅ Updated ${options.config || 'ai-test.config.jsonc'}`)
+      console.log('\nInline configuration:')
+      console.log(`  - Test framework: ${inlineConfig.testFramework}`)
+      console.log(`  - File pattern: ${inlineConfig.testFilePattern}`)
+      console.log(`  - Mock strategy: ${inlineConfig.mockStrategy}`)
+      console.log(`  - Coverage goal: ${inlineConfig.coverageGoal}%`)
+      console.log(`  - Custom rules: ${inlineConfig.customRules.length}`)
+    } else {
+      // File mode: Generate Markdown file
+      const outputPath = join(rootDir, 'best_practices.md')
+
+      if (existsSync(outputPath)) {
+        console.log(`\n⚠️  best_practices.md already exists`)
+        console.log('   Run with --inline to use inline mode instead')
+        process.exit(1)
+      }
+
+      console.log('\n🤖 Generating best practices file...')
+      const content = await generateBestPracticesFile(rootDir, analysis)
+
+      writeFileSync(outputPath, content, 'utf8')
+      console.log(`✅ Generated best_practices.md`)
+
+      // Update config file to point to the file
+      const existingPath = detectConfig(configPath)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const config = existingPath ? readConfig(existingPath) as any : {} as any
+      config.bestPractices = {
+        enabled: true,
+        source: 'file',
+        filePath: './best_practices.md'
+      }
+      writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8')
+      console.log(`✅ Updated ${options.config || 'ai-test.config.jsonc'}`)
+    }
+  })
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 命令 2: analyze - AI 配置分析
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 program

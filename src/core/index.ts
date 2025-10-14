@@ -11,7 +11,6 @@ export * from './scanner.js'
 export * from './git-analyzer.js'
 
 // 🆕 v2.3.0: 竞品特性（Keploy/Qodo 启发）
-export * from './boundary-detector.js'
 export * from './mock-analyzer.js'
 
 // 🆕 v2.4.0: Behavior 分类系统（Qodo Cover 风格）

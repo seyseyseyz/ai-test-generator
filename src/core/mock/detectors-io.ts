@@ -3,7 +3,7 @@
  * @module mock/detectors-io
  */
 
-import type { ImportAnalysis, MockRequirement } from './types.js'
+import type { ImportAnalysis } from './types.js'
 
 // ============================================================================
 // File System Detection
@@ -18,26 +18,10 @@ export function isFileSystemCall(callee: string): boolean {
 }
 
 /**
- * Analyze filesystem call
+ * Format filesystem call for detection (simplified)
  */
-export function analyzeFileSystemCall(callee: string): MockRequirement {
-  return {
-    type: 'filesystem',
-    mockStrategy: 'jest.mock',
-    reason: `File system operation: ${callee}`,
-    setupExample: `
-jest.mock('fs', () => ({
-  readFileSync: jest.fn(() => 'mocked content'),
-  writeFileSync: jest.fn(),
-  existsSync: jest.fn(() => true)
-}))
-    `.trim(),
-    testExample: `
-const fs = require('fs')
-expect(fs.readFileSync).toHaveBeenCalledWith('path/to/file')
-    `.trim(),
-    priority: 1
-  }
+export function formatFileSystemCall(callee: string): string {
+  return callee
 }
 
 // ============================================================================
@@ -54,90 +38,13 @@ export function isDatabaseCall(callee: string): boolean {
 }
 
 /**
- * Analyze database call
+ * Format database call for detection (simplified)
  */
-export function analyzeDatabaseCall(callee: string, imports: ImportAnalysis): MockRequirement {
-  // Mongoose
-  if (imports.mongoose) {
-    return {
-      type: 'database',
-      mockStrategy: 'mongodb-memory-server',
-      reason: `Mongoose database call: ${callee}`,
-      setupExample: `
-import { MongoMemoryServer } from 'mongodb-memory-server'
-import mongoose from 'mongoose'
-
-let mongoServer: MongoMemoryServer
-
-beforeAll(async () => {
-  mongoServer = await MongoMemoryServer.create()
-  await mongoose.connect(mongoServer.getUri())
-})
-
-afterAll(async () => {
-  await mongoose.disconnect()
-  await mongoServer.stop()
-})
-      `.trim(),
-      testExample: `
-await YourModel.create({ field: 'value' })
-const docs = await YourModel.find()
-expect(docs).toHaveLength(1)
-      `.trim(),
-      priority: 1
-    }
-  }
-  
-  // TypeORM
-  if (imports.typeorm) {
-    return {
-      type: 'database',
-      mockStrategy: 'typeorm-test-utils',
-      reason: `TypeORM database call: ${callee}`,
-      setupExample: `
-import { createConnection, Connection } from 'typeorm'
-
-let connection: Connection
-
-beforeAll(async () => {
-  connection = await createConnection({
-    type: 'sqlite',
-    database: ':memory:',
-    entities: [YourEntity],
-    synchronize: true
-  })
-})
-
-afterAll(async () => {
-  await connection.close()
-})
-      `.trim(),
-      testExample: `
-const repo = connection.getRepository(YourEntity)
-await repo.save({ field: 'value' })
-const entities = await repo.find()
-expect(entities).toHaveLength(1)
-      `.trim(),
-      priority: 1
-    }
-  }
-  
-  // Generic database
-  return {
-    type: 'database',
-    mockStrategy: 'jest.mock',
-    reason: `Database call: ${callee}`,
-    setupExample: `
-jest.mock('./database', () => ({
-  query: jest.fn(() => Promise.resolve({ rows: [] }))
-}))
-    `.trim(),
-    testExample: `
-const db = require('./database')
-expect(db.query).toHaveBeenCalled()
-    `.trim(),
-    priority: 1
-  }
+export function formatDatabaseCall(callee: string, imports: ImportAnalysis): string {
+  if (imports.mongoose) return `mongoose.${callee}`
+  if (imports.typeorm) return `typeorm.${callee}`
+  if (imports.sequelize) return `sequelize.${callee}`
+  return callee
 }
 
 // ============================================================================
@@ -153,32 +60,9 @@ export function isRedisCall(callee: string): boolean {
 }
 
 /**
- * Analyze Redis call
+ * Format Redis call for detection (simplified)
  */
-export function analyzeRedisCall(callee: string): MockRequirement {
-  return {
-    type: 'database',
-    mockStrategy: 'redis-mock',
-    reason: `Redis cache call: ${callee}`,
-    setupExample: `
-import RedisMock from 'redis-mock'
-
-const redis = RedisMock.createClient()
-
-beforeEach(() => {
-  redis.flushall()
-})
-
-afterAll(() => {
-  redis.quit()
-})
-    `.trim(),
-    testExample: `
-await redis.set('key', 'value')
-const result = await redis.get('key')
-expect(result).toBe('value')
-    `.trim(),
-    priority: 2
-  }
+export function formatRedisCall(callee: string): string {
+  return `redis.${callee}`
 }
 

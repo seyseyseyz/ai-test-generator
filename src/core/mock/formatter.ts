@@ -6,7 +6,7 @@
 import type { MockRequirement, MockStats } from './types.js'
 
 /**
- * Format mock requirements for AI prompt
+ * Format mock requirements for AI prompt (simplified)
  * 
  * @param mocks - Array of mock requirements
  * @returns Formatted string for prompt
@@ -18,35 +18,26 @@ import type { MockRequirement, MockStats } from './types.js'
  * ```
  */
 export function formatMocksForPrompt(mocks: MockRequirement[]): string {
-  if (!mocks.length) return '- No mocks required\n'
+  if (!mocks.length) return ''
   
-  let output = '\n## 🔌 Mock Requirements\n\n'
-  output += '> 基于依赖分析自动生成的 Mock 需求\n\n'
+  let output = '\n## 🔧 Detected Dependencies\n\n'
   
   // Group by type
-  const byType: Record<string, MockRequirement[]> = {}
+  const byType: Record<string, string[]> = {}
   for (const mock of mocks) {
     if (!byType[mock.type]) {
       byType[mock.type] = []
     }
-    byType[mock.type]?.push(mock)
+    byType[mock.type]?.push(...mock.calls)
   }
   
   // Format each type
-  for (const [type, typeMocks] of Object.entries(byType)) {
+  for (const [type, calls] of Object.entries(byType)) {
     const emoji = getTypeEmoji(type)
-    output += `### ${emoji} ${capitalizeFirst(type)} Mocks\n\n`
-    
-    for (const mock of typeMocks) {
-      output += `**Strategy**: ${mock.mockStrategy}\n`
-      output += `**Reason**: ${mock.reason}\n\n`
-      output += `**Setup Example**:\n\`\`\`typescript\n${mock.setupExample}\n\`\`\`\n\n`
-      
-      if (mock.testExample) {
-        output += `**Test Example**:\n\`\`\`typescript\n${mock.testExample}\n\`\`\`\n\n`
-      }
-    }
+    output += `${emoji} **${capitalizeFirst(type)}**: ${calls.join(', ')}\n`
   }
+  
+  output += '\n**Note**: Please choose appropriate mocking strategies for your test framework.\n'
   
   return output
 }
@@ -73,18 +64,18 @@ export function getMockStats(mocks: MockRequirement[]): MockStats {
     recommendations: []
   }
   
-  // Count by type and strategy
+  // Count by type
   for (const mock of mocks) {
-    stats.byType[mock.type] = (stats.byType[mock.type] || 0) + 1
-    stats.byStrategy[mock.mockStrategy] = (stats.byStrategy[mock.mockStrategy] || 0) + 1
+    stats.byType[mock.type] = (stats.byType[mock.type] || 0) + mock.calls.length
   }
   
   // Determine complexity
-  if (stats.total === 0) {
+  const totalCalls = Object.values(stats.byType).reduce((sum, count) => sum + count, 0)
+  if (totalCalls === 0) {
     stats.complexity = 'low'
-  } else if (stats.total <= 3) {
+  } else if (totalCalls <= 3) {
     stats.complexity = 'medium'
-  } else if (stats.total <= 6) {
+  } else if (totalCalls <= 6) {
     stats.complexity = 'high'
   } else {
     stats.complexity = 'very-high'

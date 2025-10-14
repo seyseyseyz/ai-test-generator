@@ -3,68 +3,24 @@
  * @module mock/detectors-time
  */
 
-import type { MockRequirement } from './types.js'
+// No imports needed for simplified detectors
 
 /**
- * Analyze time-related call
+ * Format time-related call for detection (simplified)
  * 
  * @param callee - Function call expression
- * @returns Mock requirement
+ * @returns Formatted call string
  */
-export function analyzeTimeCall(callee: string): MockRequirement {
-  return {
-    type: 'Timer',
-    mockStrategy: 'jest.useFakeTimers()',
-    reason: `Function uses ${callee} - requires time mocking`,
-    setupExample: `
-beforeEach(() => {
-  jest.useFakeTimers()
-})
-
-afterEach(() => {
-  jest.useRealTimers()
-})
-    `.trim(),
-    testExample: `
-it('should handle timer', () => {
-  functionUnderTest()
-  jest.advanceTimersByTime(1000)
-  expect(callback).toHaveBeenCalled()
-})
-    `.trim(),
-    priority: 2
-  }
+export function formatTimeCall(callee: string): string {
+  return callee
 }
 
 /**
- * Analyze Math.random call
+ * Format Math.random call for detection (simplified)
  * 
- * @param callee - Function call expression
- * @returns Mock requirement
+ * @returns Formatted call string
  */
-export function analyzeRandomCall(_callee: string): MockRequirement {
-  return {
-    type: 'Random',
-    mockStrategy: 'jest.spyOn(Math, "random")',
-    reason: 'Function uses Math.random - requires deterministic mocking',
-    setupExample: `
-let randomSpy: jest.SpyInstance
-
-beforeEach(() => {
-  randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5)
-})
-
-afterEach(() => {
-  randomSpy.mockRestore()
-})
-    `.trim(),
-    testExample: `
-it('should produce deterministic results', () => {
-  const result = functionUnderTest()
-  expect(result).toBe(expectedValue)
-})
-    `.trim(),
-    priority: 2
-  }
+export function formatRandomCall(): string {
+  return 'Math.random()'
 }
 

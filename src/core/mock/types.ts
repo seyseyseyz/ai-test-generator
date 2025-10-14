@@ -30,14 +30,10 @@ export interface ImportAnalysis {
   fs: boolean
 }
 
-/** Mock requirement specification */
+/** Mock requirement specification (simplified) */
 export interface MockRequirement {
   type: string
-  mockStrategy: string
-  reason: string
-  setupExample: string
-  testExample?: string
-  priority?: number
+  calls: string[]
 }
 
 /** Mock statistics */

@@ -5,11 +5,12 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 // @ts-expect-error - template file may not have types
 import { generateFewShotPrompt } from '../../templates/test-examples.js';
 import { type FunctionDeclaration, Project, type SourceFile } from 'ts-morph';
-import { detectBoundaries, formatBoundariesForPrompt } from '../core/boundary-detector.js';
 import { analyzeMockRequirements, formatMocksForPrompt } from '../core/mock-analyzer.js';
+import { detectConfig, readConfig } from '../utils/config-manager.js';
 
 interface TargetFilter {
   onlyTodo?: boolean
@@ -37,6 +38,52 @@ interface PromptOptions {
   testFramework?: string
   customInstructions?: string
   reportPath?: string
+}
+
+/**
+ * Load best practices from file or inline config
+ */
+function loadBestPractices(): string | null {
+  try {
+    const configPath = detectConfig()
+    if (!configPath) return null
+    
+    const config = readConfig(configPath)
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const bestPractices = (config as any).bestPractices
+    if (!bestPractices?.enabled) return null
+
+    // Mode 1: Load from file
+    if (bestPractices.source === 'file') {
+      const filePath = join(process.cwd(), bestPractices.filePath || 'best_practices.md')
+      if (!existsSync(filePath)) return null
+      return readFileSync(filePath, 'utf8')
+    }
+
+    // Mode 2: Load from inline config
+    if (bestPractices.source === 'inline' && bestPractices.inline) {
+      const inline = bestPractices.inline
+      return `
+# Testing Standards (Inline)
+
+- **Test Framework**: ${inline.testFramework}
+- **File Pattern**: ${inline.testFilePattern}
+- **Naming Convention**: ${inline.namingConvention}
+- **Mock Strategy**: ${inline.mockStrategy}
+- **Coverage Goal**: ${inline.coverageGoal}%
+
+## Custom Rules
+
+${inline.customRules.map((rule: string, i: number) => `${i + 1}. ${rule}`).join('\n')}
+`
+    }
+
+    return null
+  } catch {
+    // If config loading fails, just skip best practices
+    return null
+  }
 }
 
 
@@ -187,6 +234,9 @@ export function buildBatchPrompt(targets: TestTarget[], options: PromptOptions =
   // 🆕 Few-shot Learning: 根据第一个目标选择最佳示例
   const fewShotExample = targets.length > 0 ? generateFewShotPrompt(targets[0]) : ''
 
+  // 🆕 v3.1.0: Load best practices
+  const bestPractices = loadBestPractices()
+
   let prompt = `# 批量生成单元测试
 
 你是一个单元测试专家。我需要为以下 ${targets.length} 个函数生成单元测试。
@@ -195,6 +245,16 @@ export function buildBatchPrompt(targets: TestTarget[], options: PromptOptions =
 - 框架：${framework}
 - 测试框架：${testFramework} + Testing Library
 - 要求：每个函数覆盖率 >= ${coverageTarget}%
+
+${bestPractices ? `
+## 📖 Project Testing Standards
+
+${bestPractices}
+
+⚠️ **IMPORTANT**: Follow the above standards strictly when generating tests.
+
+---
+` : ''}
 
 ${fewShotExample}
 
@@ -262,8 +322,7 @@ ${JSON.stringify({ version: 1, files }, null, 2)}
     const code = extractFunctionCode(target.path, target.name);
     const testPath = target.path.replace(/\.(ts|tsx|js|jsx)$/i, (m: string) => `.test${m}`)
     
-    // 🆕 v2.3.0: 边界检测 + Mock 分析（Keploy 风格）
-    let boundariesText = ''
+    // 🆕 v2.3.0: Mock 分析
     let mocksText = ''
     
     if (project && existsSync(target.path)) {
@@ -273,12 +332,6 @@ ${JSON.stringify({ version: 1, files }, null, 2)}
         const targetFunc = functions.find((f: FunctionDeclaration) => f.getName() === target.name)
         
         if (targetFunc) {
-          // 边界条件检测
-          const boundaries = detectBoundaries(targetFunc)
-          if (boundaries.length > 0) {
-            boundariesText = `\n**Boundary Conditions** (Keploy style):\n${formatBoundariesForPrompt(boundaries)}`
-          }
-          
           // Mock 需求分析
           const mocks = analyzeMockRequirements(targetFunc)
           if (mocks.length > 0) {
@@ -303,7 +356,7 @@ ${JSON.stringify({ version: 1, files }, null, 2)}
 \`\`\`typescript
 ${code}
 \`\`\`
-${boundariesText}${mocksText}
+${mocksText}
 **测试文件路径**: \`${testPath}\`
 
 ---

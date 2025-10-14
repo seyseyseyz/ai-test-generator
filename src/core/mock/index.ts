@@ -23,17 +23,17 @@ export type { HttpMethod, ImportAnalysis, MockRequirement, MockStats, MockStrate
 
 // Re-export functions
 export { analyzeImports } from './analyzer-imports.js'
-export { analyzeHttpCall, extractHttpMethod, generateAxiosMockExample, generateMswExample } from './detectors-http.js'
-export { analyzeRandomCall, analyzeTimeCall } from './detectors-time.js'
-export { analyzeDatabaseCall, analyzeFileSystemCall, analyzeRedisCall, isDatabaseCall, isFileSystemCall, isRedisCall } from './detectors-io.js'
+export { extractHttpMethod, formatHttpCall } from './detectors-http.js'
+export { formatRandomCall, formatTimeCall } from './detectors-time.js'
+export { formatDatabaseCall, formatFileSystemCall, formatRedisCall, isDatabaseCall, isFileSystemCall, isRedisCall } from './detectors-io.js'
 export { formatMocksForPrompt, getMockStats } from './formatter.js'
 
 // Imports for main function
 import { SyntaxKind, type CallExpression } from 'ts-morph'
 import { analyzeImports } from './analyzer-imports.js'
-import { analyzeDatabaseCall, analyzeFileSystemCall, analyzeRedisCall, isDatabaseCall, isFileSystemCall, isRedisCall } from './detectors-io.js'
-import { analyzeRandomCall, analyzeTimeCall } from './detectors-time.js'
-import { analyzeHttpCall } from './detectors-http.js'
+import { formatDatabaseCall, formatFileSystemCall, formatRedisCall, isDatabaseCall, isFileSystemCall, isRedisCall } from './detectors-io.js'
+import { formatRandomCall, formatTimeCall } from './detectors-time.js'
+import { formatHttpCall } from './detectors-http.js'
 import type { FunctionNode, ImportAnalysis, MockRequirement } from './types.js'
 
 // ============================================================================
@@ -41,17 +41,17 @@ import type { FunctionNode, ImportAnalysis, MockRequirement } from './types.js'
 // ============================================================================
 
 /**
- * Analyze mock requirements for a function
+ * Analyze mock requirements for a function (simplified)
  * 
- * Identifies external dependencies and recommends mocking strategies:
- * - HTTP calls → axios-mock-adapter or MSW
- * - Database calls → in-memory databases or jest.mock
- * - File system → jest.mock
- * - Timers → jest.useFakeTimers
- * - Random → jest.spyOn
+ * Identifies external dependencies that may need mocking:
+ * - HTTP calls (fetch, axios)
+ * - Database calls (mongoose, typeorm, sequelize)
+ * - File system (fs)
+ * - Timers (setTimeout, setInterval, Date)
+ * - Random (Math.random)
  * 
  * @param functionNode - Function AST node from ts-morph
- * @returns Array of mock requirements
+ * @returns Array of mock requirements grouped by type
  * 
  * @example
  * ```typescript
@@ -63,11 +63,11 @@ import type { FunctionNode, ImportAnalysis, MockRequirement } from './types.js'
  * const fn = sourceFile.getFunction('myFunction')
  * 
  * const mocks = analyzeMockRequirements(fn)
- * console.log(`Found ${mocks.length} mock requirements`)
+ * console.log(`Found ${mocks.length} mock types`)
  * ```
  */
 export function analyzeMockRequirements(functionNode: FunctionNode): MockRequirement[] {
-  const mocks: MockRequirement[] = []
+  const callsByType: Map<string, Set<string>> = new Map()
   const sourceFile = functionNode.getSourceFile()
   const imports = analyzeImports(sourceFile)
   
@@ -77,10 +77,14 @@ export function analyzeMockRequirements(functionNode: FunctionNode): MockRequire
   for (const call of calls) {
     try {
       const callee = call.getExpression().getText()
-      const mock = analyzeFunctionCall(call, callee, imports)
+      const result = detectMockType(call, callee, imports)
       
-      if (mock) {
-        mocks.push(mock)
+      if (result) {
+        const { type, formattedCall } = result
+        if (!callsByType.has(type)) {
+          callsByType.set(type, new Set())
+        }
+        callsByType.get(type)?.add(formattedCall)
       }
     } catch {
       // Skip calls that can't be analyzed
@@ -88,27 +92,28 @@ export function analyzeMockRequirements(functionNode: FunctionNode): MockRequire
     }
   }
   
-  // Remove duplicates (by type + mockStrategy)
-  return Array.from(
-    new Map(mocks.map(m => [`${m.type}-${m.mockStrategy}`, m])).values()
-  )
+  // Convert to MockRequirement array
+  return Array.from(callsByType.entries()).map(([type, calls]) => ({
+    type,
+    calls: Array.from(calls)
+  }))
 }
 
 /**
- * Analyze a single function call to determine mock requirements
+ * Detect mock type for a function call
  * 
  * @param call - Function call expression
  * @param callee - Callee expression text
  * @param imports - Import analysis result
- * @returns Mock requirement or null
+ * @returns Detection result or null
  * 
  * @internal
  */
-function analyzeFunctionCall(
+function detectMockType(
   call: CallExpression,
   callee: string,
   imports: ImportAnalysis
-): MockRequirement | null {
+): { type: string; formattedCall: string } | null {
   // HTTP calls
   if (callee.includes('axios') || callee.includes('fetch') || callee.includes('.get(') || callee.includes('.post(')) {
     const args = call.getArguments()
@@ -122,32 +127,32 @@ function analyzeFunctionCall(
     const method = callee.includes('.post') ? 'post' : 
                    callee.includes('.put') ? 'put' :
                    callee.includes('.delete') ? 'delete' : 'get'
-    return analyzeHttpCall(callee, method, url)
+    return { type: 'http', formattedCall: formatHttpCall(callee, method, url) }
   }
   
   // Time-related calls
   if (callee.includes('setTimeout') || callee.includes('setInterval') || callee.includes('new Date')) {
-    return analyzeTimeCall(callee)
+    return { type: 'timer', formattedCall: formatTimeCall(callee) }
   }
   
   // Random calls
   if (callee.includes('Math.random')) {
-    return analyzeRandomCall(callee)
+    return { type: 'random', formattedCall: formatRandomCall() }
   }
   
   // File system calls
   if (isFileSystemCall(callee)) {
-    return analyzeFileSystemCall(callee)
+    return { type: 'filesystem', formattedCall: formatFileSystemCall(callee) }
   }
   
   // Database calls
   if (isDatabaseCall(callee)) {
-    return analyzeDatabaseCall(callee, imports)
+    return { type: 'database', formattedCall: formatDatabaseCall(callee, imports) }
   }
   
   // Redis calls
   if (isRedisCall(callee)) {
-    return analyzeRedisCall(callee)
+    return { type: 'database', formattedCall: formatRedisCall(callee) }
   }
   
   return null
