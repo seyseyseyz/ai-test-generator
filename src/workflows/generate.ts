@@ -36,7 +36,7 @@ interface BatchResult {
  * @returns 批次结果
  */
 async function generateBatch(priority: string, count: number, skip: number, report: string): Promise<BatchResult> {
-  const batchScript = join(PKG_ROOT, 'lib/workflows/batch.mjs')
+  const batchScript = join(PKG_ROOT, 'dist/workflows/batch.js')
   
   return new Promise((resolve, reject) => {
     const child = spawn('node', [batchScript, priority, String(count), String(skip), report], {

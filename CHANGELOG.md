@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.2] - 2025-10-15
+
+### 🐛 Critical Bug Fix
+- **Fixed**: Module path resolution in workflows - corrected hardcoded `lib/workflows/batch.mjs` to `dist/workflows/batch.js`
+- **Fixed**: Generate command now works correctly when installed as npm package
+- **Fixed**: Iterative improvement workflow path resolution
+- **Fixed**: Parallel generation workflow path resolution
+
+### 📝 Files Modified
+- `src/workflows/generate.ts` - Fixed batch script path
+- `src/workflows/iterative-improve.ts` - Fixed 2 batch script path references
+- `src/workflows/all.ts` - Fixed batch script path
+
 ## [3.1.1] - 2025-10-15
 
 ### 🐛 Bug Fixes

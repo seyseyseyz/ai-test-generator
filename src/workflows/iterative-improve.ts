@@ -298,7 +298,7 @@ export async function iterativeImprove(options: IterativeImproveOptions = {}): P
           
           // 生成候选测试
           await spawnCommand('node', [
-            join(PKG_ROOT, 'lib/workflows/batch.mjs'),
+            join(PKG_ROOT, 'dist/workflows/batch.js'),
             'null', // priority (as string for CLI arg)
             '10', // limit
             '0',  // skip
@@ -343,7 +343,7 @@ export async function iterativeImprove(options: IterativeImproveOptions = {}): P
       } else {
         // 单样本模式（原有逻辑）
         await spawnCommand('node', [
-          join(PKG_ROOT, 'lib/workflows/batch.mjs'),
+          join(PKG_ROOT, 'dist/workflows/batch.js'),
           'null', // priority
           '10', // limit
           '0',  // skip

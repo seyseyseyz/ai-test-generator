@@ -60,7 +60,7 @@ Remaining TODO: ${remain}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`)
 
     try {
-      await sh('node', [join(pkgRoot, 'lib/workflows/batch.mjs'), priority, String(batchSize), String(skip)])
+      await sh('node', [join(pkgRoot, 'dist/workflows/batch.js'), priority, String(batchSize), String(skip)])
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       console.error('Batch failed:', message)
