@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.1] - 2025-10-15
+
+### 🐛 Bug Fixes
+- **Fixed**: `scan` workflow - corrected function parameter order and type handling
+- **Fixed**: Git analyzer - properly export `analyzeGitHistory` function
+- **Fixed**: Scoring system - updated error-risk metrics to use new git signal field names
+- **Fixed**: Test validator and deduplicator - cleaned up import statements and type assertions
+
+### 🔧 Improvements
+- **Enhanced**: Type safety across scoring modules with better type definitions
+- **Optimized**: Git signal field naming for consistency (commits30d, commits90d, etc.)
+- **Cleaned**: Removed duplicate type definitions and unified GitSignals type exports
+
+### 📚 Documentation
+- **Added**: FINAL_SUMMARY.md with comprehensive verification results
+- **Updated**: Build verification passed with zero TypeScript errors
+
 ## [2.4.0] - 2025-01-11
 
 ### 🚀 Phase 2 Features: Parallel Generation + Behavior Classification

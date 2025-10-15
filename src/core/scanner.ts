@@ -10,8 +10,11 @@ import type { VariableDeclaration } from 'ts-morph'
 
 /**
  * List TypeScript source files with exclusions
+ * @param excludeDirs - Directories to exclude
+ * @param scanPaths - Paths to scan (default: ['src'])
+ * @returns Array of file paths
  */
-async function listFiles(excludeDirs: string[] = []): Promise<string[]> {
+export async function listFiles(excludeDirs: string[] = [], scanPaths: string[] = ['src']): Promise<string[]> {
   const fg = (await requirePackage<{ default: (patterns: string | string[], options?: { dot?: boolean }) => Promise<string[]> }>('fast-glob', 'fast-glob')).default
   
   // 基础排除规则
@@ -25,10 +28,12 @@ async function listFiles(excludeDirs: string[] = []): Promise<string[]> {
     return `!${prefixed}/**`
   })
   
-  const patterns = ['src/**/*.{ts,tsx}', ...baseExcludes, ...userExcludes]
+  // 支持多个扫描路径
+  const scanPatterns = scanPaths.map(p => `${p}/**/*.{ts,tsx}`)
+  const patterns = [...scanPatterns, ...baseExcludes, ...userExcludes]
   const files = await fg(patterns, { dot: false })
   
-  if (!files?.length) throw new Error('No source files found under src (check exclude patterns)')
+  if (!files?.length) throw new Error(`No source files found under [${scanPaths.join(', ')}] (check exclude patterns)`)
   return files
 }
 
@@ -85,10 +90,15 @@ function getLoc(text: string, start: number, end: number): number {
 
 /**
  * Extract testable targets from source files
+ * @param files - List of source files to scan
+ * @param config - Optional configuration object
+ * @returns Array of function targets
  */
-async function extractTargets(files: string[]): Promise<FunctionTarget[]> {
+export async function extractTargets(files: string[], config?: AITestConfig): Promise<FunctionTarget[]> {
   const { Project: TsMorphProject, SyntaxKind: TsSyntaxKind, SourceFile: TsSourceFile, FunctionDeclaration: TsFunctionDeclaration, VariableDeclaration: TsVariableDeclaration } = await requirePackage<typeof import('ts-morph')>('ts-morph', 'ts-morph')
-  const cfg = loadJson<AITestConfig>('ut_scoring_config.json') || {} as AITestConfig
+  
+  // 使用传入的配置或从文件加载
+  const cfg = config || loadJson<AITestConfig>('ut_scoring_config.json') || {} as AITestConfig
   const internalInclude = cfg.internalInclude === true
   const minLoc = cfg?.internalThresholds?.minLoc ?? 15
 

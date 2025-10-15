@@ -13,24 +13,26 @@ export function mapLikelihoodFromGitByConfig(
   _depGraphData: DependencyGraph,
   _cfg: ScoringConfig
 ): number {
-  const { totalCommits, recentCommits, uniqueAuthors, crossModuleRefs } = git
+  // 使用新的字段名：commits180d, commits30d, authors30d
+  const { commits180d, commits30d, authors30d, inCategory, multiPlatform } = git
   
   let L = 3 // 基础值
   
   // P2-1: 提交频率（越频繁，越可能出错）
-  if (totalCommits > 50) L += 2
-  else if (totalCommits > 20) L += 1
+  if (commits180d > 50) L += 2
+  else if (commits180d > 20) L += 1
   
   // P2-2: 最近活跃度
-  if (recentCommits > 10) L += 2
-  else if (recentCommits > 5) L += 1
+  if (commits30d > 10) L += 2
+  else if (commits30d > 5) L += 1
   
   // P2-3: 多人协作（人越多，越容易冲突）
-  if (uniqueAuthors > 5) L += 1
-  else if (uniqueAuthors > 10) L += 2
+  if (authors30d > 5) L += 1
+  else if (authors30d > 10) L += 2
   
-  // P2-4: 跨模块引用（复杂依赖）
-  if (crossModuleRefs > 3) L += 1
+  // P2-4: 跨模块引用和多平台（复杂依赖）
+  if (inCategory) L += 1
+  if (multiPlatform) L += 1
   
   return clamp(L, 1, 10)
 }

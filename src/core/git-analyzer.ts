@@ -123,8 +123,11 @@ function parseRelativeTime(rel: string): number {
 
 /**
  * Collect Git data with exec optimization
+ * @param files - List of files to analyze
+ * @param config - Configuration object (optional)
+ * @returns Git signals for each file
  */
-function collectWithExec(files: string[], config: AITestConfig | null): Record<string, GitSignals> {
+export function analyzeGitHistory(files: string[], config: AITestConfig | null = null): Record<string, GitSignals> {
   const results: Record<string, GitSignals> = {}
   const crossCats = config?.crossModuleCategories || []
   
@@ -171,7 +174,7 @@ async function main(): Promise<void> {
   try {
     assertGitRepo()
     const files = gitFiles('src')
-    const results = collectWithExec(files, config)
+    const results = analyzeGitHistory(files, config)
 
     const json = JSON.stringify(results, null, 2)
     if (outPath) {

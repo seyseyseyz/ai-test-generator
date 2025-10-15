@@ -113,11 +113,12 @@ export async function scoreTargets(
     // 获取指标
     const metrics = pickMetricsForTarget({ byFunc }, target)
     const git = gitData.get(target.path) || {
-      totalCommits: 0,
-      recentCommits: 0,
-      uniqueAuthors: 0,
-      avgTimeGap: 0,
-      crossModuleRefs: 0
+      commits30d: 0,
+      commits90d: 0,
+      commits180d: 0,
+      authors30d: 0,
+      inCategory: false,
+      multiPlatform: false
     }
     
     // 计算各项指标

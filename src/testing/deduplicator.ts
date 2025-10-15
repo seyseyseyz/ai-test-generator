@@ -7,7 +7,7 @@
  * @module testing/deduplicator
  */
 
-import { Project, SyntaxKind, type CallExpression } from 'ts-morph'
+import { type CallExpression, Project, SyntaxKind } from 'ts-morph'
 import levenshtein from 'fast-levenshtein'
 
 // ============================================================================

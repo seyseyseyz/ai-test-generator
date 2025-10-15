@@ -149,14 +149,9 @@ export interface DependencyNode {
 
 /**
  * Git 信号数据
+ * Re-export from types module to avoid duplication
  */
-export interface GitSignals {
-  totalCommits: number
-  recentCommits: number
-  uniqueAuthors: number
-  avgTimeGap: number
-  crossModuleRefs: number
-}
+export type { GitSignals } from '../../types/index.js'
 
 /**
  * 影响提示

@@ -13,9 +13,8 @@
 
 import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
-import { writeFileSync, unlinkSync, existsSync } from 'node:fs'
-import { join, dirname } from 'node:path'
-import { mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 
 const execAsync = promisify(exec)
 
