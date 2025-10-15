@@ -13,7 +13,7 @@
 
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { glob } from 'fast-glob'
+import fg from 'fast-glob'
 import { runOnce } from '../ai/client.js'
 
 // ============================================================================
@@ -75,7 +75,7 @@ export async function analyzeProject(rootDir: string): Promise<ProjectAnalysis> 
   else if (deps['mocha']) testFramework = 'mocha'
 
   // 2. Detect test file pattern
-  const testFiles = await glob('**/*.{test,spec}.{ts,js,tsx,jsx}', {
+  const testFiles = await fg('**/*.{test,spec}.{ts,js,tsx,jsx}', {
     cwd: rootDir,
     ignore: ['node_modules/**', 'dist/**', 'build/**', 'coverage/**']
   })
