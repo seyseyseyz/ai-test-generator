@@ -7,7 +7,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 // @ts-expect-error - template file may not have types
-import { generateFewShotPrompt } from '../../templates/test-examples.js';
+import { generateFewShotPrompt } from '../../templates/test-examples.mjs';
 import { type FunctionDeclaration, Project, type SourceFile } from 'ts-morph';
 import { analyzeMockRequirements, formatMocksForPrompt } from '../core/mock-analyzer.js';
 import { detectConfig, readConfig } from '../utils/config-manager.js';

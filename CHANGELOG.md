@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.4] - 2025-10-15
+
+### 🐛 Critical Bug Fix (Final)
+- **Fixed**: Template file import in prompt-builder - corrected `test-examples.js` to `test-examples.mjs`
+- **Verified**: All module paths now working correctly in npm package
+
+### 📝 Files Modified
+- `src/ai/prompt-builder.ts` - Fixed template import extension
+
 ## [3.1.3] - 2025-10-15
 
 ### 🐛 Critical Bug Fix (Complete)
