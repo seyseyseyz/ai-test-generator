@@ -117,7 +117,7 @@ export async function generateBestPracticesFile(
   analysis: ProjectAnalysis
 ): Promise<string> {
   const prompt = buildFilePrompt(rootDir, analysis)
-  const result = await runOnce({ prompt, temperature: 0.3 })
+  const result = await runOnce({ prompt })
   return readFileSync(result.out, 'utf8')
 }
 
@@ -140,7 +140,7 @@ export async function generateBestPracticesInline(
   analysis: ProjectAnalysis
 ): Promise<BestPracticesInline> {
   const prompt = buildInlinePrompt(rootDir, analysis)
-  const result = await runOnce({ prompt, temperature: 0.3 })
+  const result = await runOnce({ prompt })
   const aiResponse = readFileSync(result.out, 'utf8')
   
   // Parse JSON response

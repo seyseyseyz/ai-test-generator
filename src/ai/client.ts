@@ -34,7 +34,6 @@ interface RunOnceOptions {
   promptFile?: string
   out?: string
   model?: string
-  temperature?: number
   timeoutSec?: number
 }
 
@@ -43,7 +42,7 @@ interface RunOnceResult {
   bytes: number
 }
 
-export async function runOnce({ prompt, promptFile, out = 'reports/ai_response.txt', model, temperature = 0.4, timeoutSec = 600 }: RunOnceOptions): Promise<RunOnceResult> {
+export async function runOnce({ prompt, promptFile, out = 'reports/ai_response.txt', model, timeoutSec = 600 }: RunOnceOptions): Promise<RunOnceResult> {
   let finalPrompt = prompt
   if (!finalPrompt) {
     if (!promptFile || !existsSync(promptFile)) throw new Error(`Prompt file not found: ${promptFile}`)
@@ -52,9 +51,9 @@ export async function runOnce({ prompt, promptFile, out = 'reports/ai_response.t
 
   return new Promise((resolve, reject) => {
     const args = ['--print']
-    if (model) args.push('-m', model)
-    // Meta 研究发现: temperature 0.4 比 0.0 成功率高 25%
-    if (temperature !== undefined) args.push('--temperature', String(temperature))
+    if (model) args.push('--model', model)
+    // Note: cursor-agent doesn't support --temperature parameter
+    // Temperature control is handled by the model itself
 
     const child = spawn('cursor-agent', args, { stdio: ['pipe', 'pipe', 'inherit'] })
 
@@ -89,11 +88,10 @@ export async function runCLI(argv: string[] = process.argv): Promise<void> {
   const promptFile = (args['prompt'] || args['prompt-file'] || args['promptFile'] || null) as string | null
   const out = (args['out'] || 'reports/ai_response.txt') as string
   const model = (args['model'] || null) as string | null
-  const temperature = args['temperature'] ? Number(args['temperature']) : 0.4  // Meta 最佳实践
   const timeoutSec = args['timeout'] ? Number(args['timeout']) : 600
 
   try {
-    await runOnce({ promptFile: promptFile || undefined, out, model: model || undefined, temperature, timeoutSec })
+    await runOnce({ promptFile: promptFile || undefined, out, model: model || undefined, timeoutSec })
     console.log(`✅ AI response saved: ${out}`)
   } catch (err: unknown) {
     const error = err as Error

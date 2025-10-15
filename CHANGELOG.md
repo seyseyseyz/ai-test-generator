@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.6] - 2025-10-15
+
+### 🐛 Critical Bug Fix
+- **Fixed**: Removed unsupported `--temperature` parameter from cursor-agent invocation
+- **Fixed**: Changed `-m` to `--model` for proper cursor-agent syntax
+- **Issue**: cursor-agent CLI doesn't support temperature parameter, causing "unknown option" error
+
+### 📝 Files Modified
+- `src/ai/client.ts` - Removed temperature parameter, fixed model parameter syntax
+
 ## [3.1.5] - 2025-10-15
 
 ### 🐛 Critical Bug Fix
