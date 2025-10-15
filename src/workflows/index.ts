@@ -18,6 +18,12 @@ export * from './parallel-generate.js'
 // 🆕 v3.1.0: Best Practices 生成
 export * from './init-best-practices.js'
 
+// 🆕 v3.1.0: 实时验证生成
+export * from './generate-with-validation.js'
+
+// 🆕 v3.1.0: 覆盖率驱动生成 (Keploy 风格)
+export * from './coverage-driven-generate.js'
+
 // 批处理工作流（内部使用）
 // export { main as runBatch } from './batch.js' // CLI only
 // export { main as runAll } from './all.js' // CLI only

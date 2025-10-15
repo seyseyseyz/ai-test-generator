@@ -14,3 +14,9 @@ export * from './stability-checker.js'
 // 🆕 v2.3.0: Cobertura 覆盖率解析（Keploy 风格）
 export * from './coverage-parser.js'
 
+// 🆕 v3.1.0: Test validation (Qodo 风格)
+export * from './validator.js'
+
+// 🆕 v3.1.0: Test deduplication (Keploy 风格)
+export * from './deduplicator.js'
+
