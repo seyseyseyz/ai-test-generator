@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.3] - 2025-10-15
+
+### 🐛 Critical Bug Fix (Complete)
+- **Fixed**: All remaining `lib/` path references in batch.ts and parallel-generate.ts
+- **Fixed**: prompt-builder.js, client.js, extractor.js, runner.js, analyzer.js path resolution
+- **Fixed**: Generate workflow now fully functional when installed as npm package
+
+### 📝 Files Modified
+- `src/workflows/batch.ts` - Fixed 5 module path references
+- `src/workflows/parallel-generate.ts` - Fixed 3 module path references
+
 ## [3.1.2] - 2025-10-15
 
 ### 🐛 Critical Bug Fix

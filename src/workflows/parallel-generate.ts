@@ -247,7 +247,7 @@ async function generateBatch(batch: TodoFunction[], batchIndex: number, options:
     // 1. 生成 Prompt（只包含这个批次的函数）
     const reportArg = reportPath || 'reports/ut_scores.md'
     const promptArgs = [
-      join(PKG_ROOT, 'lib/ai/prompt-builder.mjs'),
+      join(PKG_ROOT, 'dist/ai/prompt-builder.js'),
       '--report', reportArg,
       '--only-todo'
     ]
@@ -278,14 +278,14 @@ async function generateBatch(batch: TodoFunction[], batchIndex: number, options:
     // 2. 调用 AI
     const aiResponsePath = join(batchDir, 'ai_response.txt')
     await sh('node', [
-      join(PKG_ROOT, 'lib/ai/client.mjs'),
+      join(PKG_ROOT, 'dist/ai/client.js'),
       '--prompt', promptPath || '',
       '--out', aiResponsePath || ''
     ], { captureStdout: false, cwd: process.cwd(), env: {} })
     
     // 3. 提取测试
     await sh('node', [
-      join(PKG_ROOT, 'lib/ai/extractor.mjs'),
+      join(PKG_ROOT, 'dist/ai/extractor.js'),
       aiResponsePath || '',
       '--overwrite'
     ], { captureStdout: false, cwd: process.cwd(), env: {} })

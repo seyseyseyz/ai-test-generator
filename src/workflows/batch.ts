@@ -134,7 +134,7 @@ async function main(argv: string[] = process.argv): Promise<void> {
 
   // 1) 生成 Prompt（只针对 TODO 函数，加入上一轮失败提示）
   const promptArgs = [
-    join(pkgRoot, 'lib/ai/prompt-builder.mjs'),
+    join(pkgRoot, 'dist/ai/prompt-builder.js'),
     '--report', reportPath
   ]
   
@@ -161,11 +161,11 @@ async function main(argv: string[] = process.argv): Promise<void> {
 
   // 2) 调用 AI
   console.log('\n🤖 Calling AI...')
-  await spawnCommand('node', [join(pkgRoot, 'lib/ai/client.mjs'), 'prompt.txt'], { captureStdout: true })
+  await spawnCommand('node', [join(pkgRoot, 'dist/ai/client.js'), 'prompt.txt'], { captureStdout: true })
 
   // 3) 提取测试
   console.log('\n📦 Extracting tests...')
-  await spawnCommand('node', [join(pkgRoot, 'lib/ai/extractor.mjs'), 'reports/ai_response.txt', '--overwrite'])
+  await spawnCommand('node', [join(pkgRoot, 'dist/ai/extractor.js'), 'reports/ai_response.txt', '--overwrite'])
 
   // 4) 运行 Jest（按优先级自适应重跑）
   console.log('\n🧪 Running tests...')
@@ -174,7 +174,7 @@ async function main(argv: string[] = process.argv): Promise<void> {
   
   for (let i = 0; i < Math.max(1, reruns + 1); i++) {
     try {
-      await spawnCommand('node', [join(pkgRoot, 'lib/testing/runner.mjs')])
+      await spawnCommand('node', [join(pkgRoot, 'dist/testing/runner.js')])
       testsPassed = true
       break
     } catch {
@@ -211,7 +211,7 @@ async function main(argv: string[] = process.argv): Promise<void> {
   const { spawn: spawnLocal } = await import('node:child_process')
   const { writeFileSync: writeFileSyncLocal } = await import('node:fs')
   await new Promise<void>((resolve) => {
-    const child = spawnLocal('node', [join(pkgRoot, 'lib/testing/analyzer.mjs')], { stdio: ['inherit','pipe','inherit'] })
+    const child = spawnLocal('node', [join(pkgRoot, 'dist/testing/analyzer.js')], { stdio: ['inherit','pipe','inherit'] })
     const chunks: Buffer[] = []
     if (child.stdout) {
       child.stdout.on('data', (d: Buffer) => chunks.push(d))
