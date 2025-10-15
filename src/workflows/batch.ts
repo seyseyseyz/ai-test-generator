@@ -161,7 +161,7 @@ async function main(argv: string[] = process.argv): Promise<void> {
 
   // 2) 调用 AI
   console.log('\n🤖 Calling AI...')
-  await spawnCommand('node', [join(pkgRoot, 'dist/ai/client.js'), 'prompt.txt'], { captureStdout: true })
+  await spawnCommand('node', [join(pkgRoot, 'dist/ai/client.js'), '--prompt', 'prompt.txt'], { captureStdout: true })
 
   // 3) 提取测试
   console.log('\n📦 Extracting tests...')
